@@ -23,6 +23,9 @@ export default function StudyNotebook() {
   const [newNote, setNewNote] = useState('');
   const [isWriting, setIsWriting] = useState(false);
   const [editingNote, setEditingNote] = useState<{ id: string; content: string } | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filteredNotes, setFilteredNotes] = useState<Note[]>([]);
+  const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
 
   const supabase = createClient();
 
@@ -58,6 +61,24 @@ export default function StudyNotebook() {
       console.error('글 불러오기 실패:', error);
     }
   }, [user]);
+
+  // 검색 필터링 함수
+  const filterNotes = useCallback(() => {
+    if (!searchQuery.trim()) {
+      setFilteredNotes(notes);
+      return;
+    }
+
+    const filtered = notes.filter(note =>
+      note.content.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+    setFilteredNotes(filtered);
+  }, [notes, searchQuery]);
+
+  // 노트가 변경되거나 검색어가 변경될 때 필터링 실행
+  useEffect(() => {
+    filterNotes();
+  }, [filterNotes]);
 
   // 글 저장 함수
   const saveNote = async () => {
@@ -157,6 +178,44 @@ export default function StudyNotebook() {
     setNotes([]);
   };
 
+  const handleProfileUpdate = async () => {
+    // 프로필 업데이트 후 사용자 정보 새로고침
+    const { data: { user } } = await supabase.auth.getUser();
+    setUser(user);
+  };
+
+  // 검색 모달 열기
+  const openSearchModal = () => {
+    setIsSearchModalOpen(true);
+  };
+
+  // 검색 모달 닫기
+  const closeSearchModal = () => {
+    setIsSearchModalOpen(false);
+    setSearchQuery('');
+  };
+
+  // 검색 초기화
+  const clearSearch = () => {
+    setSearchQuery('');
+  };
+
+  // 검색어 하이라이트 함수
+  const highlightSearchTerm = (text: string, searchTerm: string) => {
+    if (!searchTerm.trim()) return text;
+    
+    const regex = new RegExp(`(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    const parts = text.split(regex);
+    
+    return parts.map((part, index) => 
+      regex.test(part) ? (
+        <mark key={index} className="bg-yellow-200 px-1 rounded">
+          {part}
+        </mark>
+      ) : part
+    );
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
@@ -173,7 +232,11 @@ export default function StudyNotebook() {
   // 로그인한 경우 노트 앱 표시
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      <Header userEmail={user.email || ''} onLogout={handleLogout} />
+      <Header 
+        userEmail={user.email || ''} 
+        onLogout={handleLogout} 
+        onProfileUpdate={handleProfileUpdate}
+      />
       
       <div className="p-4">
         <div className="max-w-4xl mx-auto">
@@ -183,13 +246,22 @@ export default function StudyNotebook() {
               <h2 className="text-xl font-semibold text-gray-800 flex items-center">
                 ✏️ 새로운 학습 내용
               </h2>
-              <div className="text-sm text-gray-500">
-                {new Date().toLocaleDateString('ko-KR', { 
-                  year: 'numeric', 
-                  month: 'long', 
-                  day: 'numeric',
-                  weekday: 'long'
-                })}
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={openSearchModal}
+                  className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                  title="노트 검색"
+                >
+                  🔍
+                </button>
+                <div className="text-sm text-gray-500">
+                  {new Date().toLocaleDateString('ko-KR', { 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric',
+                    weekday: 'long'
+                  })}
+                </div>
               </div>
             </div>
             
@@ -245,14 +317,17 @@ export default function StudyNotebook() {
               </div>
             ) : (
               <div className="grid gap-4">
-                {notes.map((note, index) => (
-                  <div key={note.id} className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow border-l-4 border-green-500">
+                {notes.map((note, index) => {
+                  const displayIndex = notes.length - index;
+                  
+                  return (
+                  <div key={note.id} id={`note-${note.id}`} className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow border-l-4 border-green-500">
                     <div className="p-6">
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex items-center gap-2">
                           <span className="text-lg">📄</span>
                           <span className="text-sm font-medium text-gray-600">
-                            학습 노트 #{notes.length - index}
+                            학습 노트 #{displayIndex}
                           </span>
                         </div>
                         <div className="flex items-center gap-2">
@@ -316,12 +391,108 @@ export default function StudyNotebook() {
                       )}
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
         </div>
       </div>
+
+      {/* 검색 모달 */}
+      {isSearchModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-start justify-center z-50 p-4 pt-20">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] overflow-hidden">
+            {/* 검색 헤더 */}
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center gap-4">
+                <div className="flex-1 relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <span className="text-gray-400 text-lg">🔍</span>
+                  </div>
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="노트 내용을 검색해보세요..."
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-lg"
+                    autoFocus
+                  />
+                </div>
+                <button
+                  onClick={closeSearchModal}
+                  className="p-2 text-gray-400 hover:text-gray-600 text-2xl"
+                  title="검색 닫기"
+                >
+                  ✕
+                </button>
+              </div>
+              {searchQuery && (
+                <div className="mt-3 flex items-center justify-between">
+                  <div className="text-sm text-gray-600">
+                    <span className="font-medium">&ldquo;{searchQuery}&rdquo;</span> 검색 결과: {filteredNotes.length}개
+                  </div>
+                  <button
+                    onClick={clearSearch}
+                    className="text-sm text-purple-600 hover:text-purple-800"
+                  >
+                    검색 초기화
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* 검색 결과 */}
+            <div className="overflow-y-auto max-h-96">
+              {!searchQuery ? (
+                <div className="p-8 text-center text-gray-500">
+                  <div className="text-4xl mb-4">🔍</div>
+                  <p>검색어를 입력해주세요</p>
+                </div>
+              ) : filteredNotes.length === 0 ? (
+                <div className="p-8 text-center text-gray-500">
+                  <div className="text-4xl mb-4">😔</div>
+                  <p>&ldquo;{searchQuery}&rdquo;와 일치하는 노트가 없습니다</p>
+                </div>
+              ) : (
+                <div className="p-4 space-y-3">
+                  {filteredNotes.map((note, index) => (
+                    <div key={note.id} className="bg-gray-50 rounded-lg p-4 hover:bg-gray-100 transition-colors cursor-pointer"
+                         onClick={() => {
+                           closeSearchModal();
+                           // 해당 노트로 스크롤 (선택사항)
+                           const noteElement = document.getElementById(`note-${note.id}`);
+                           if (noteElement) {
+                             noteElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                           }
+                         }}>
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm">📄</span>
+                          <span className="text-sm font-medium text-gray-600">
+                            학습 노트 #{filteredNotes.length - index}
+                          </span>
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {new Date(note.created_at).toLocaleDateString('ko-KR', {
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </div>
+                      </div>
+                      <p className="text-sm text-gray-700 line-clamp-3">
+                        {highlightSearchTerm(note.content, searchQuery)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
