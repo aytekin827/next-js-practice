@@ -20,8 +20,8 @@ export async function GET(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // KIS 액세스 토큰 발급
-    const accessToken = await getKISAccessToken(kisConfig);
+    // KIS 액세스 토큰 발급 (캐시된 토큰 우선 사용)
+    const accessToken = await getKISAccessToken(kisConfig, user.id);
     if (!accessToken) {
       return NextResponse.json({
         error: 'KIS API 인증에 실패했습니다. 설정을 확인해주세요.'

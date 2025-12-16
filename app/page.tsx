@@ -36,6 +36,13 @@ interface LogEntry {
   type: 'info' | 'success' | 'warning' | 'error';
 }
 
+// 설정 상수들
+const REFRESH_INTERVALS = {
+  CLOCK: 1000,        // 시계 업데이트: 1초
+  API_DATA: 30000,    // API 데이터 업데이트: 30초 (변경 가능)
+  API_STATUS: 60000,  // API 상태 체크: 1분 (변경 가능)
+} as const;
+
 export default function TradingDashboard() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -54,14 +61,15 @@ export default function TradingDashboard() {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [dataLoading, setDataLoading] = useState(false);
+  const [refreshInterval, setRefreshInterval] = useState(REFRESH_INTERVALS.API_DATA);
 
   const supabase = createClient();
 
-  // 현재 시간 업데이트 (1초마다)
+  // 현재 시간 업데이트
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date());
-    }, 1000);
+    }, REFRESH_INTERVALS.CLOCK);
 
     return () => clearInterval(timer);
   }, []);
@@ -235,22 +243,36 @@ export default function TradingDashboard() {
     }
   };
 
-  // 데이터 로딩
+  // 초기 데이터 로딩
   useEffect(() => {
     if (user) {
       loadAssetData();
       loadHoldings();
       checkApiStatus();
-
-      // 주기적 업데이트
-      const interval = setInterval(() => {
-        checkApiStatus();
-        loadAssetData();
-        loadHoldings();
-      }, 30000); // 30초마다
-
-      return () => clearInterval(interval);
     }
+  }, [user]);
+
+  // 주기적 데이터 업데이트 (새로고침 주기 변경 시 재설정)
+  useEffect(() => {
+    if (!user || refreshInterval === 0) return; // 수동 모드면 interval 설정 안함
+
+    const dataInterval = setInterval(() => {
+      loadAssetData();
+      loadHoldings();
+    }, refreshInterval);
+
+    return () => clearInterval(dataInterval);
+  }, [user, refreshInterval]);
+
+  // API 상태 체크 (별도 주기)
+  useEffect(() => {
+    if (!user) return;
+
+    const statusInterval = setInterval(() => {
+      checkApiStatus();
+    }, REFRESH_INTERVALS.API_STATUS);
+
+    return () => clearInterval(statusInterval);
   }, [user]);
 
   const handleLoginSuccess = () => {
@@ -294,6 +316,35 @@ export default function TradingDashboard() {
             {/* 현재 시간 */}
             <div className="text-sm font-mono">
               {currentTime.toLocaleTimeString()}
+            </div>
+
+            {/* 새로고침 주기 설정 */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-400">새로고침:</span>
+              <select
+                value={refreshInterval}
+                onChange={(e) => setRefreshInterval(Number(e.target.value))}
+                className="bg-gray-700 border border-gray-600 rounded px-2 py-1 text-xs text-white"
+              >
+                <option value={10000}>10초</option>
+                <option value={30000}>30초</option>
+                <option value={60000}>1분</option>
+                <option value={300000}>5분</option>
+                <option value={0}>수동</option>
+              </select>
+              {refreshInterval === 0 && (
+                <button
+                  onClick={() => {
+                    loadAssetData();
+                    loadHoldings();
+                    checkApiStatus();
+                  }}
+                  className="bg-blue-600 hover:bg-blue-700 text-xs px-2 py-1 rounded transition-colors"
+                  title="수동 새로고침"
+                >
+                  🔄
+                </button>
+              )}
             </div>
 
             {/* 사용자 정보 */}

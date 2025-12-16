@@ -23,8 +23,8 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // KIS 액세스 토큰 발급으로 연결 상태 확인
-    const accessToken = await getKISAccessToken(kisConfig);
+    // KIS 액세스 토큰 발급으로 연결 상태 확인 (캐시된 토큰 우선 사용)
+    const accessToken = await getKISAccessToken(kisConfig, user.id);
 
     const isOnline = !!accessToken;
 

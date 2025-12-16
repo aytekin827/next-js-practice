@@ -20,8 +20,8 @@ export async function GET(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // KIS 액세스 토큰 발급
-    const accessToken = await getKISAccessToken(kisConfig);
+    // KIS 액세스 토큰 발급 (캐시된 토큰 우선 사용)
+    const accessToken = await getKISAccessToken(kisConfig, user.id);
     if (!accessToken) {
       return NextResponse.json({
         error: 'KIS API 인증에 실패했습니다. 설정을 확인해주세요.'
@@ -75,11 +75,13 @@ export async function GET(request: NextRequest) {
     // KIS API 응답 데이터 파싱
     const output2 = balanceData.output2?.[0] || {};
 
+    console.log(output2)
+
     const assetData = {
       totalAssets: parseInt(output2.tot_evlu_amt || '0'), // 총평가금액
       totalAssetsChange: parseInt(output2.evlu_pfls_smtl_amt || '0'), // 평가손익합계금액
       realizedPnL: parseInt(output2.rlzt_pfls || '0'), // 실현손익
-      buyingPower: parseInt(output2.ord_psbl_cash || '0'), // 주문가능현금
+      buyingPower: parseInt(output2.dnca_tot_amt || '0'), // 주문가능현금
       totalReturn: parseFloat(output2.tot_evlu_pfls_rt || '0') // 총평가손익률
     };
 
