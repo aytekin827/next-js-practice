@@ -30,9 +30,9 @@ export default function Header({ userEmail, onLogout, onProfileUpdate }: HeaderP
       <header className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-4xl mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-gray-800">📖 Study Notes</h1>
+            <h1 className="text-2xl font-bold text-gray-800">Trading Notes</h1>
           </div>
-          
+
           <div className="flex items-center gap-4">
             <button
               onClick={() => setIsProfileModalOpen(true)}
@@ -44,7 +44,7 @@ export default function Header({ userEmail, onLogout, onProfileUpdate }: HeaderP
               </span>
               <span>{userEmail}</span>
             </button>
-            
+
             <button
               onClick={handleLogout}
               className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
