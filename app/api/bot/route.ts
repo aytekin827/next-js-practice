@@ -4,7 +4,7 @@ import { createClient } from '@/utils/supabase/server';
 // 봇 상태 토글
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // 사용자 인증 확인
     const { data: { user }, error: authError } = await supabase.auth.getUser();

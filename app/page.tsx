@@ -87,72 +87,62 @@ export default function TradingDashboard() {
   const loadAssetData = async () => {
     setDataLoading(true);
     try {
-      // const response = await fetch('/api/assets');
-      // const data = await response.json();
-      // setAssetData(data);
+      const response = await fetch('/api/assets');
+      const data = await response.json();
 
-      // 임시 로딩 시뮬레이션
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // 임시 데이터
-      setAssetData({
-        totalAssets: 15420000,
-        totalAssetsChange: 234000,
-        realizedPnL: 45000,
-        buyingPower: 2340000,
-        totalReturn: 12.5
-      });
+      if (data.error) {
+        console.error('자산 데이터 오류:', data.error);
+        // 오류 시 기본값 설정
+        setAssetData({
+          totalAssets: 0,
+          totalAssetsChange: 0,
+          realizedPnL: 0,
+          buyingPower: 0,
+          totalReturn: 0
+        });
+      } else {
+        setAssetData(data);
+      }
     } catch (error) {
       console.error('자산 데이터 로딩 실패:', error);
+      // 네트워크 오류 시 기본값 설정
+      setAssetData({
+        totalAssets: 0,
+        totalAssetsChange: 0,
+        realizedPnL: 0,
+        buyingPower: 0,
+        totalReturn: 0
+      });
     } finally {
       setDataLoading(false);
     }
   };
 
   const loadHoldings = async () => {
-    // TODO: 실제 API 연결
     try {
-      // const response = await fetch('/api/holdings');
-      // const data = await response.json();
-      // setHoldings(data);
+      const response = await fetch('/api/holdings');
+      const data = await response.json();
 
-      // 임시 데이터
-      setHoldings([
-        {
-          id: '1',
-          symbol: '005930',
-          name: '삼성전자',
-          quantity: 50,
-          currentPrice: 71000,
-          avgPrice: 68000,
-          marketValue: 3550000,
-          returnRate: 4.41
-        },
-        {
-          id: '2',
-          symbol: '000660',
-          name: 'SK하이닉스',
-          quantity: 30,
-          currentPrice: 125000,
-          avgPrice: 130000,
-          marketValue: 3750000,
-          returnRate: -3.85
-        }
-      ]);
+      if (Array.isArray(data)) {
+        setHoldings(data);
+      } else {
+        console.error('보유 종목 데이터 오류:', data.error);
+        setHoldings([]);
+      }
     } catch (error) {
       console.error('보유 종목 데이터 로딩 실패:', error);
+      setHoldings([]);
     }
   };
 
   const checkApiStatus = async () => {
-    // TODO: 실제 API 상태 확인
     try {
-      // const response = await fetch('/api/status');
-      // setApiStatus(response.ok ? 'online' : 'offline');
+      const response = await fetch('/api/status');
+      const data = await response.json();
 
-      // 임시로 랜덤 상태
-      setApiStatus(Math.random() > 0.3 ? 'online' : 'offline');
+      setApiStatus(data.status === 'online' ? 'online' : 'offline');
     } catch (error) {
+      console.error('API 상태 확인 실패:', error);
       setApiStatus('offline');
     }
   };
@@ -196,21 +186,52 @@ export default function TradingDashboard() {
 
   const sellStock = async (holdingId: string) => {
     try {
-      // TODO: 실제 매도 API
-      // await fetch(`/api/sell/${holdingId}`, { method: 'POST' });
-
       const holding = holdings.find(h => h.id === holdingId);
-      if (holding) {
+      if (!holding) return;
+
+      const response = await fetch('/api/sell', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          holdingId: holdingId,
+          symbol: holding.symbol,
+          quantity: holding.quantity
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
         const newLog: LogEntry = {
           id: Date.now().toString(),
           timestamp: new Date().toLocaleTimeString(),
-          message: `${holding.name}(${holding.symbol}) ${holding.quantity}주 시장가 매도 주문 전송`,
-          type: 'info'
+          message: `${holding.name}(${holding.symbol}) ${holding.quantity}주 시장가 매도 주문 전송 완료`,
+          type: 'success'
+        };
+        setLogs(prev => [newLog, ...prev.slice(0, 49)]);
+
+        // 보유 종목 새로고침
+        loadHoldings();
+      } else {
+        const newLog: LogEntry = {
+          id: Date.now().toString(),
+          timestamp: new Date().toLocaleTimeString(),
+          message: `매도 주문 실패: ${data.error}`,
+          type: 'error'
         };
         setLogs(prev => [newLog, ...prev.slice(0, 49)]);
       }
     } catch (error) {
       console.error('매도 실패:', error);
+      const newLog: LogEntry = {
+        id: Date.now().toString(),
+        timestamp: new Date().toLocaleTimeString(),
+        message: '매도 주문 중 오류가 발생했습니다',
+        type: 'error'
+      };
+      setLogs(prev => [newLog, ...prev.slice(0, 49)]);
     }
   };
 

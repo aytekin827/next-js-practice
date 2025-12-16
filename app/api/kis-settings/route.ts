@@ -4,7 +4,7 @@ import { createClient } from '@/utils/supabase/server';
 // KIS 설정 조회
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient()
 
     // 사용자 인증 확인
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
 // KIS 설정 저장
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // 사용자 인증 확인
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
     }
 
     // APP_SECRET이 마스킹된 값이면 업데이트하지 않음
-    const updateData: any = {
+    const updateData: Record<string, string> = {
       user_id: user.id,
       kis_app_key: KIS_APP_KEY,
       kis_cano: KIS_CANO,
