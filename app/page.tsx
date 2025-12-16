@@ -26,6 +26,7 @@ export default function StudyNotebook() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredNotes, setFilteredNotes] = useState<Note[]>([]);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   const supabase = createClient();
 
@@ -126,14 +127,16 @@ export default function StudyNotebook() {
     }
   };
 
-  // 글 수정 시작
+  // 글 수정 시작 (모달 열기)
   const startEditNote = (note: Note) => {
     setEditingNote({ id: note.id, content: note.content });
+    setIsEditModalOpen(true);
   };
 
-  // 글 수정 취소
+  // 글 수정 취소 (모달 닫기)
   const cancelEditNote = () => {
     setEditingNote(null);
+    setIsEditModalOpen(false);
   };
 
   // 글 수정 저장
@@ -151,6 +154,7 @@ export default function StudyNotebook() {
 
       if (response.ok) {
         setEditingNote(null);
+        setIsEditModalOpen(false);
         loadNotes(); // 수정 후 목록 새로고침
       } else {
         const errorData = await response.json();
@@ -321,7 +325,12 @@ export default function StudyNotebook() {
                   const displayIndex = notes.length - index;
 
                   return (
-                  <div key={note.id} id={`note-${note.id}`} className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow border-l-4 border-green-500">
+                  <div
+                    key={note.id}
+                    id={`note-${note.id}`}
+                    className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow border-l-4 border-green-500 cursor-pointer"
+                    onClick={() => startEditNote(note)}
+                  >
                     <div className="p-6">
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex items-center gap-2">
@@ -340,14 +349,10 @@ export default function StudyNotebook() {
                             })}
                           </div>
                           <button
-                            onClick={() => startEditNote(note)}
-                            className="text-blue-500 hover:text-blue-700 hover:bg-blue-50 p-2 rounded-lg transition-colors"
-                            title="노트 수정"
-                          >
-                            ✏️
-                          </button>
-                          <button
-                            onClick={() => deleteNote(note.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteNote(note.id);
+                            }}
                             className="text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded-lg transition-colors"
                             title="노트 삭제"
                           >
@@ -356,39 +361,12 @@ export default function StudyNotebook() {
                         </div>
                       </div>
 
-                      {/* 수정 모드일 때 */}
-                      {editingNote && editingNote.id === note.id ? (
-                        <div className="space-y-4">
-                          <textarea
-                            value={editingNote.content}
-                            onChange={(e) => setEditingNote({ ...editingNote, content: e.target.value })}
-                            className="w-full h-32 p-4 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
-                            autoFocus
-                          />
-                          <div className="flex gap-3">
-                            <button
-                              onClick={updateNote}
-                              disabled={!editingNote.content.trim()}
-                              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors text-sm"
-                            >
-                              💾 저장
-                            </button>
-                            <button
-                              onClick={cancelEditNote}
-                              className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm"
-                            >
-                              취소
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        /* 일반 보기 모드 */
-                        <div className="prose max-w-none">
-                          <p className="text-gray-800 whitespace-pre-wrap leading-relaxed">
-                            {note.content}
-                          </p>
-                        </div>
-                      )}
+                      {/* 노트 내용 */}
+                      <div className="prose max-w-none">
+                        <p className="text-gray-800 whitespace-pre-wrap leading-relaxed">
+                          {note.content}
+                        </p>
+                      </div>
                     </div>
                   </div>
                   );
@@ -401,8 +379,14 @@ export default function StudyNotebook() {
 
       {/* 검색 모달 */}
       {isSearchModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-start justify-center z-50 p-4 pt-20">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] overflow-hidden">
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-start justify-center z-50 p-4 pt-20"
+          onClick={closeSearchModal}
+        >
+          <div
+            className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* 검색 헤더 */}
             <div className="p-6 border-b border-gray-200">
               <div className="flex items-center gap-4">
@@ -489,6 +473,70 @@ export default function StudyNotebook() {
                   ))}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 노트 수정 모달 */}
+      {isEditModalOpen && editingNote && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          onClick={cancelEditNote}
+        >
+          <div
+            className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* 모달 헤더 */}
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
+                  ✏️ 학습 노트 수정
+                </h2>
+                <button
+                  onClick={cancelEditNote}
+                  className="p-2 text-gray-400 hover:text-gray-600 text-2xl"
+                  title="수정 취소"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            {/* 모달 내용 */}
+            <div className="p-6">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    학습 내용
+                  </label>
+                  <textarea
+                    value={editingNote.content}
+                    onChange={(e) => setEditingNote({ ...editingNote, content: e.target.value })}
+                    placeholder="학습한 내용을 수정해보세요..."
+                    className="w-full h-64 p-4 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                    autoFocus
+                  />
+                </div>
+
+                {/* 버튼 영역 */}
+                <div className="flex justify-end gap-3 pt-4">
+                  <button
+                    onClick={cancelEditNote}
+                    className="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+                  >
+                    취소
+                  </button>
+                  <button
+                    onClick={updateNote}
+                    disabled={!editingNote.content.trim()}
+                    className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+                  >
+                    💾 저장하기
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
