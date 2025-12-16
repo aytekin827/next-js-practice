@@ -62,7 +62,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
               placeholder="your@email.com"
               required
             />
@@ -76,7 +76,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
               placeholder="••••••••"
               required
               minLength={6}
@@ -85,8 +85,8 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
 
           {message && (
             <div className={`p-3 rounded-lg text-sm ${
-              message.includes('완료') 
-                ? 'bg-green-100 text-green-700' 
+              message.includes('완료')
+                ? 'bg-green-100 text-green-700'
                 : 'bg-red-100 text-red-700'
             }`}>
               {message}

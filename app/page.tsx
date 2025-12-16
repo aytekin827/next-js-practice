@@ -50,7 +50,7 @@ export default function StudyNotebook() {
   // 글 불러오기 함수
   const loadNotes = useCallback(async () => {
     if (!user) return;
-    
+
     try {
       const response = await fetch('/api/notes');
       if (response.ok) {
@@ -83,7 +83,7 @@ export default function StudyNotebook() {
   // 글 저장 함수
   const saveNote = async () => {
     if (!newNote.trim()) return;
-    
+
     try {
       const response = await fetch('/api/notes', {
         method: 'POST',
@@ -92,7 +92,7 @@ export default function StudyNotebook() {
         },
         body: JSON.stringify({ content: newNote }),
       });
-      
+
       if (response.ok) {
         setNewNote('');
         setIsWriting(false);
@@ -113,7 +113,7 @@ export default function StudyNotebook() {
       const response = await fetch(`/api/notes?id=${noteId}`, {
         method: 'DELETE',
       });
-      
+
       if (response.ok) {
         loadNotes(); // 삭제 후 목록 새로고침
       } else {
@@ -148,7 +148,7 @@ export default function StudyNotebook() {
         },
         body: JSON.stringify({ content: editingNote.content }),
       });
-      
+
       if (response.ok) {
         setEditingNote(null);
         loadNotes(); // 수정 후 목록 새로고침
@@ -203,11 +203,11 @@ export default function StudyNotebook() {
   // 검색어 하이라이트 함수
   const highlightSearchTerm = (text: string, searchTerm: string) => {
     if (!searchTerm.trim()) return text;
-    
+
     const regex = new RegExp(`(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
     const parts = text.split(regex);
-    
-    return parts.map((part, index) => 
+
+    return parts.map((part, index) =>
       regex.test(part) ? (
         <mark key={index} className="bg-yellow-200 px-1 rounded">
           {part}
@@ -232,12 +232,12 @@ export default function StudyNotebook() {
   // 로그인한 경우 노트 앱 표시
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      <Header 
-        userEmail={user.email || ''} 
-        onLogout={handleLogout} 
+      <Header
+        userEmail={user.email || ''}
+        onLogout={handleLogout}
         onProfileUpdate={handleProfileUpdate}
       />
-      
+
       <div className="p-4">
         <div className="max-w-4xl mx-auto">
           {/* 새 노트 작성 영역 */}
@@ -255,16 +255,16 @@ export default function StudyNotebook() {
                   🔍
                 </button>
                 <div className="text-sm text-gray-500">
-                  {new Date().toLocaleDateString('ko-KR', { 
-                    year: 'numeric', 
-                    month: 'long', 
+                  {new Date().toLocaleDateString('ko-KR', {
+                    year: 'numeric',
+                    month: 'long',
                     day: 'numeric',
                     weekday: 'long'
                   })}
                 </div>
               </div>
             </div>
-            
+
             {!isWriting ? (
               <button
                 onClick={() => setIsWriting(true)}
@@ -278,7 +278,7 @@ export default function StudyNotebook() {
                   value={newNote}
                   onChange={(e) => setNewNote(e.target.value)}
                   placeholder="오늘 배운 내용을 자유롭게 적어보세요...&#10;&#10;예시:&#10;• JavaScript의 Promise와 async/await 학습&#10;• React Hook의 useEffect 사용법&#10;• 알고리즘 문제 해결 과정"
-                  className="w-full h-40 p-4 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full h-40 p-4 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
                   autoFocus
                 />
                 <div className="flex gap-3">
@@ -289,7 +289,7 @@ export default function StudyNotebook() {
                   >
                     💾 저장하기
                   </button>
-                  <button
+                  {/* <button
                     onClick={() => {
                       setIsWriting(false);
                       setNewNote('');
@@ -297,7 +297,7 @@ export default function StudyNotebook() {
                     className="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
                   >
                     취소
-                  </button>
+                  </button> */}
                 </div>
               </div>
             )}
@@ -308,7 +308,7 @@ export default function StudyNotebook() {
             <h2 className="text-2xl font-semibold text-gray-800 flex items-center gap-2">
               📚 학습 기록 ({notes.length}개)
             </h2>
-            
+
             {notes.length === 0 ? (
               <div className="bg-white rounded-lg shadow-md p-8 text-center">
                 <div className="text-6xl mb-4">📝</div>
@@ -319,7 +319,7 @@ export default function StudyNotebook() {
               <div className="grid gap-4">
                 {notes.map((note, index) => {
                   const displayIndex = notes.length - index;
-                  
+
                   return (
                   <div key={note.id} id={`note-${note.id}`} className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow border-l-4 border-green-500">
                     <div className="p-6">
@@ -355,14 +355,14 @@ export default function StudyNotebook() {
                           </button>
                         </div>
                       </div>
-                      
+
                       {/* 수정 모드일 때 */}
                       {editingNote && editingNote.id === note.id ? (
                         <div className="space-y-4">
                           <textarea
                             value={editingNote.content}
                             onChange={(e) => setEditingNote({ ...editingNote, content: e.target.value })}
-                            className="w-full h-32 p-4 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            className="w-full h-32 p-4 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
                             autoFocus
                           />
                           <div className="flex gap-3">
@@ -415,7 +415,7 @@ export default function StudyNotebook() {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="노트 내용을 검색해보세요..."
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-lg"
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-lg text-gray-900"
                     autoFocus
                   />
                 </div>

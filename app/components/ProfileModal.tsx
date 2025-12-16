@@ -147,7 +147,7 @@ export default function ProfileModal({ isOpen, onClose, userEmail, onProfileUpda
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   새 이메일
@@ -156,7 +156,7 @@ export default function ProfileModal({ isOpen, onClose, userEmail, onProfileUpda
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
                   placeholder="새로운 이메일 주소"
                 />
               </div>
@@ -179,7 +179,7 @@ export default function ProfileModal({ isOpen, onClose, userEmail, onProfileUpda
                   type="password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
                   placeholder="새 비밀번호 (최소 6자)"
                   minLength={6}
                 />
@@ -193,7 +193,7 @@ export default function ProfileModal({ isOpen, onClose, userEmail, onProfileUpda
                   type="password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
                   placeholder="새 비밀번호 다시 입력"
                   minLength={6}
                 />
