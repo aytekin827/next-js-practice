@@ -61,7 +61,7 @@ export default function TradingDashboard() {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [dataLoading, setDataLoading] = useState(false);
-  const [refreshInterval, setRefreshInterval] = useState(REFRESH_INTERVALS.API_DATA);
+  const [refreshInterval, setRefreshInterval] = useState<number>(REFRESH_INTERVALS.API_DATA);
 
   const supabase = createClient();
 
