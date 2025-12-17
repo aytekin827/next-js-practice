@@ -6,6 +6,7 @@ import LoginForm from './components/LoginForm';
 import DashboardLayout from './components/DashboardLayout';
 import DashboardHome from './components/DashboardHome';
 import StockAnalysis from './components/StockAnalysis';
+import QuantumRecommendation from './components/QuantumRecommendation';
 import TradingSettings from './components/TradingSettings';
 
 interface User {
@@ -16,7 +17,7 @@ interface User {
 export default function TradingDashboard() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [currentPage, setCurrentPage] = useState<'dashboard' | 'analysis' | 'settings'>('dashboard');
+  const [currentPage, setCurrentPage] = useState<'dashboard' | 'analysis' | 'quantum-recommendation' | 'settings'>('dashboard');
 
   const supabase = createClient();
 
@@ -60,6 +61,7 @@ export default function TradingDashboard() {
     >
       {currentPage === 'dashboard' && <DashboardHome />}
       {currentPage === 'analysis' && <StockAnalysis />}
+      {currentPage === 'quantum-recommendation' && <QuantumRecommendation />}
       {currentPage === 'settings' && <TradingSettings />}
     </DashboardLayout>
   );

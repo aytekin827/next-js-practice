@@ -48,13 +48,13 @@ export async function getKISConfig(userId: string): Promise<KISConfig | null> {
 /**
  * KIS API 호출을 위한 공통 헤더를 생성합니다
  */
-export function createKISHeaders(config: KISConfig, accessToken?: string, tr_id?: string) {
+export function createKISHeaders(config: KISConfig, accessToken?: string) {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json; charset=utf-8',
     'authorization': accessToken ? `Bearer ${accessToken}` : '',
     'appkey': config.appKey,
     'appsecret': config.appSecret,
-    'tr_id': tr_id ? tr_id : '', // API별로 설정 필요
+    'tr_id': '', // API별로 설정 필요
   };
 
   return headers;

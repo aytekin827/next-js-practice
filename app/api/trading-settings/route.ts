@@ -10,6 +10,10 @@ export interface TradingSettings {
   defaultStockCount: number;
   defaultMinVolume: number;
   defaultMarket: 'KOSPI' | 'KOSDAQ';
+  // 퀀텀종목추천 관련 설정
+  quantumDefaultProfitPercent: number;
+  quantumDefaultStopLossPercent: number;
+  quantumMaxAmountPerStock: number;
 }
 
 // 기본 설정값
@@ -21,7 +25,11 @@ const DEFAULT_SETTINGS: TradingSettings = {
   gapFilterMaxPercent: 7.0,
   defaultStockCount: 20,
   defaultMinVolume: 50000,
-  defaultMarket: 'KOSPI'
+  defaultMarket: 'KOSPI',
+  // 퀀텀종목추천 기본값
+  quantumDefaultProfitPercent: 1.0,
+  quantumDefaultStopLossPercent: 3.0,
+  quantumMaxAmountPerStock: 50000
 };
 
 // 설정 조회
@@ -61,7 +69,11 @@ export async function GET(request: NextRequest) {
       gapFilterMaxPercent: parseFloat(data.gap_filter_max_percent) || DEFAULT_SETTINGS.gapFilterMaxPercent,
       defaultStockCount: data.default_stock_count || DEFAULT_SETTINGS.defaultStockCount,
       defaultMinVolume: data.default_min_volume || DEFAULT_SETTINGS.defaultMinVolume,
-      defaultMarket: data.default_market || DEFAULT_SETTINGS.defaultMarket
+      defaultMarket: data.default_market || DEFAULT_SETTINGS.defaultMarket,
+      // 퀀텀종목추천 설정
+      quantumDefaultProfitPercent: parseFloat(data.quantum_default_profit_percent) || DEFAULT_SETTINGS.quantumDefaultProfitPercent,
+      quantumDefaultStopLossPercent: parseFloat(data.quantum_default_stop_loss_percent) || DEFAULT_SETTINGS.quantumDefaultStopLossPercent,
+      quantumMaxAmountPerStock: data.quantum_max_amount_per_stock || DEFAULT_SETTINGS.quantumMaxAmountPerStock
     };
 
     return NextResponse.json(settings);
@@ -106,6 +118,10 @@ export async function POST(request: NextRequest) {
       default_stock_count: settings.defaultStockCount,
       default_min_volume: settings.defaultMinVolume,
       default_market: settings.defaultMarket,
+      // 퀀텀종목추천 설정
+      quantum_default_profit_percent: settings.quantumDefaultProfitPercent,
+      quantum_default_stop_loss_percent: settings.quantumDefaultStopLossPercent,
+      quantum_max_amount_per_stock: settings.quantumMaxAmountPerStock,
       updated_at: new Date().toISOString()
     };
 

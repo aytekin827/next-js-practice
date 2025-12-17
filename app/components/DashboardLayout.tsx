@@ -11,8 +11,8 @@ interface User {
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
-  currentPage: 'dashboard' | 'analysis' | 'settings';
-  onPageChange: (page: 'dashboard' | 'analysis' | 'settings') => void;
+  currentPage: 'dashboard' | 'analysis' | 'quantum-recommendation' | 'settings';
+  onPageChange: (page: 'dashboard' | 'analysis' | 'quantum-recommendation' | 'settings') => void;
 }
 
 export default function DashboardLayout({ children, currentPage, onPageChange }: DashboardLayoutProps) {
@@ -80,6 +80,12 @@ export default function DashboardLayout({ children, currentPage, onPageChange }:
       name: '시초가 갭 & 돌파(Gap & Breakout) 전략',
       icon: '📈',
       description: '시초가 갭을 이용한 돌파 전략'
+    },
+    {
+      id: 'quantum-recommendation' as const,
+      name: '퀀텀종목추천',
+      icon: '🚀',
+      description: 'CSV 파일 업로드를 통한 퀀텀 종목 추천 및 매수'
     },
     {
       id: 'settings' as const,
