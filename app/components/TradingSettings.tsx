@@ -15,6 +15,9 @@ interface TradingSettings {
   quantumDefaultProfitPercent: number;
   quantumDefaultStopLossPercent: number;
   quantumMaxAmountPerStock: number;
+  // 손절가 활성화 설정
+  defaultStopLossEnabled: boolean;
+  quantumDefaultStopLossEnabled: boolean;
 }
 
 export default function TradingSettings() {
@@ -30,7 +33,10 @@ export default function TradingSettings() {
     // 퀀텀종목추천 기본값
     quantumDefaultProfitPercent: 1.0,
     quantumDefaultStopLossPercent: 3.0,
-    quantumMaxAmountPerStock: 50000
+    quantumMaxAmountPerStock: 50000,
+    // 손절가 활성화 기본값
+    defaultStopLossEnabled: true,
+    quantumDefaultStopLossEnabled: true
   });
 
   const [loading, setLoading] = useState(true);
@@ -106,7 +112,10 @@ export default function TradingSettings() {
       // 퀀텀종목추천 기본값
       quantumDefaultProfitPercent: 1.0,
       quantumDefaultStopLossPercent: 3.0,
-      quantumMaxAmountPerStock: 50000
+      quantumMaxAmountPerStock: 50000,
+      // 손절가 활성화 기본값
+      defaultStopLossEnabled: true,
+      quantumDefaultStopLossEnabled: true
     });
     setMessage(null);
   };
@@ -190,7 +199,29 @@ export default function TradingSettings() {
               <div className="bg-gray-700/50 rounded-lg p-4">
                 <h3 className="text-md font-semibold mb-4 text-gray-200">💰 손절/익절 설정</h3>
                 <div className="space-y-4">
-                  <div>
+                  {/* 손절가 활성화 토글 */}
+                  <div className="bg-gray-600/50 rounded p-3 border border-gray-500">
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-sm text-gray-300 font-medium">기본 손절가 사용</label>
+                      <button
+                        onClick={() => setSettings(prev => ({ ...prev, defaultStopLossEnabled: !prev.defaultStopLossEnabled }))}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                          settings.defaultStopLossEnabled ? 'bg-blue-600' : 'bg-gray-400'
+                        }`}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                            settings.defaultStopLossEnabled ? 'translate-x-6' : 'translate-x-1'
+                          }`}
+                        />
+                      </button>
+                    </div>
+                    <div className="text-xs text-gray-400">
+                      활성화 시 매수와 동시에 손절 주문이 자동으로 설정됩니다
+                    </div>
+                  </div>
+
+                  <div className={`${!settings.defaultStopLossEnabled ? 'opacity-50' : ''}`}>
                     <label className="block text-sm text-gray-400 mb-2">기본 손절 퍼센트 (%)</label>
                     <input
                       type="number"
@@ -199,10 +230,11 @@ export default function TradingSettings() {
                         ...prev,
                         defaultStopLossPercent: parseFloat(e.target.value) || 0
                       }))}
+                      disabled={!settings.defaultStopLossEnabled}
                       step="0.1"
                       min="0"
                       max="50"
-                      className="w-full bg-gray-600 border border-gray-500 rounded px-3 py-2 text-white"
+                      className="w-full bg-gray-600 border border-gray-500 rounded px-3 py-2 text-white disabled:opacity-50 disabled:cursor-not-allowed"
                     />
                     <div className="text-xs text-gray-500 mt-1">매수가 대비 하락 시 자동 매도할 퍼센트</div>
                   </div>
@@ -380,47 +412,71 @@ export default function TradingSettings() {
 
         {expandedSections.quantum && (
           <div className="px-6 pb-6 border-t border-gray-600">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+              {/* 손절/익절 설정 */}
               <div className="bg-gray-700/50 rounded-lg p-4">
-                <h3 className="text-md font-semibold mb-4 text-gray-200">💰 익절 설정</h3>
-                <div>
-                  <label className="block text-sm text-gray-400 mb-2">퀀텀 기본 익절 퍼센트 (%)</label>
-                  <input
-                    type="number"
-                    value={settings.quantumDefaultProfitPercent}
-                    onChange={(e) => setSettings(prev => ({
-                      ...prev,
-                      quantumDefaultProfitPercent: parseFloat(e.target.value) || 0
-                    }))}
-                    step="0.1"
-                    min="0"
-                    max="50"
-                    className="w-full bg-gray-600 border border-gray-500 rounded px-3 py-2 text-white"
-                  />
-                  <div className="text-xs text-gray-500 mt-1">퀀텀 종목 매수 시 기본 익절 퍼센트</div>
+                <h3 className="text-md font-semibold mb-4 text-gray-200">💰 손절/익절 설정</h3>
+                <div className="space-y-4">
+                  {/* 손절가 활성화 토글 */}
+                  <div className="bg-gray-600/50 rounded p-3 border border-gray-500">
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-sm text-gray-300 font-medium">퀀텀 기본 손절가 사용</label>
+                      <button
+                        onClick={() => setSettings(prev => ({ ...prev, quantumDefaultStopLossEnabled: !prev.quantumDefaultStopLossEnabled }))}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                          settings.quantumDefaultStopLossEnabled ? 'bg-blue-600' : 'bg-gray-400'
+                        }`}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                            settings.quantumDefaultStopLossEnabled ? 'translate-x-6' : 'translate-x-1'
+                          }`}
+                        />
+                      </button>
+                    </div>
+                    <div className="text-xs text-gray-400">
+                      활성화 시 퀀텀 종목 매수와 동시에 손절 주문이 자동으로 설정됩니다
+                    </div>
+                  </div>
+
+                  <div className={`${!settings.quantumDefaultStopLossEnabled ? 'opacity-50' : ''}`}>
+                    <label className="block text-sm text-gray-400 mb-2">퀀텀 기본 손절 퍼센트 (%)</label>
+                    <input
+                      type="number"
+                      value={settings.quantumDefaultStopLossPercent}
+                      onChange={(e) => setSettings(prev => ({
+                        ...prev,
+                        quantumDefaultStopLossPercent: parseFloat(e.target.value) || 0
+                      }))}
+                      disabled={!settings.quantumDefaultStopLossEnabled}
+                      step="0.1"
+                      min="0"
+                      max="50"
+                      className="w-full bg-gray-600 border border-gray-500 rounded px-3 py-2 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                    />
+                    <div className="text-xs text-gray-500 mt-1">퀀텀 종목 매수가 대비 하락 시 자동 매도할 퍼센트</div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-2">퀀텀 기본 익절 퍼센트 (%)</label>
+                    <input
+                      type="number"
+                      value={settings.quantumDefaultProfitPercent}
+                      onChange={(e) => setSettings(prev => ({
+                        ...prev,
+                        quantumDefaultProfitPercent: parseFloat(e.target.value) || 0
+                      }))}
+                      step="0.1"
+                      min="0"
+                      max="50"
+                      className="w-full bg-gray-600 border border-gray-500 rounded px-3 py-2 text-white"
+                    />
+                    <div className="text-xs text-gray-500 mt-1">퀀텀 종목 매수가 대비 상승 시 자동 매도할 퍼센트</div>
+                  </div>
                 </div>
               </div>
 
-              <div className="bg-gray-700/50 rounded-lg p-4">
-                <h3 className="text-md font-semibold mb-4 text-gray-200">🛡️ 손절 설정</h3>
-                <div>
-                  <label className="block text-sm text-gray-400 mb-2">퀀텀 기본 손절 퍼센트 (%)</label>
-                  <input
-                    type="number"
-                    value={settings.quantumDefaultStopLossPercent}
-                    onChange={(e) => setSettings(prev => ({
-                      ...prev,
-                      quantumDefaultStopLossPercent: parseFloat(e.target.value) || 0
-                    }))}
-                    step="0.1"
-                    min="0"
-                    max="50"
-                    className="w-full bg-gray-600 border border-gray-500 rounded px-3 py-2 text-white"
-                  />
-                  <div className="text-xs text-gray-500 mt-1">퀀텀 종목 매수 시 기본 손절 퍼센트</div>
-                </div>
-              </div>
-
+              {/* 일괄매수 설정 */}
               <div className="bg-gray-700/50 rounded-lg p-4">
                 <h3 className="text-md font-semibold mb-4 text-gray-200">📦 일괄매수 설정</h3>
                 <div>

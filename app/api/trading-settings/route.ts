@@ -14,6 +14,9 @@ export interface TradingSettings {
   quantumDefaultProfitPercent: number;
   quantumDefaultStopLossPercent: number;
   quantumMaxAmountPerStock: number;
+  // 손절가 활성화 설정
+  defaultStopLossEnabled: boolean;
+  quantumDefaultStopLossEnabled: boolean;
 }
 
 // 기본 설정값
@@ -29,7 +32,10 @@ const DEFAULT_SETTINGS: TradingSettings = {
   // 퀀텀종목추천 기본값
   quantumDefaultProfitPercent: 1.0,
   quantumDefaultStopLossPercent: 3.0,
-  quantumMaxAmountPerStock: 50000
+  quantumMaxAmountPerStock: 50000,
+  // 손절가 활성화 기본값
+  defaultStopLossEnabled: true,
+  quantumDefaultStopLossEnabled: true
 };
 
 // 설정 조회
@@ -73,7 +79,10 @@ export async function GET(request: NextRequest) {
       // 퀀텀종목추천 설정
       quantumDefaultProfitPercent: parseFloat(data.quantum_default_profit_percent) || DEFAULT_SETTINGS.quantumDefaultProfitPercent,
       quantumDefaultStopLossPercent: parseFloat(data.quantum_default_stop_loss_percent) || DEFAULT_SETTINGS.quantumDefaultStopLossPercent,
-      quantumMaxAmountPerStock: data.quantum_max_amount_per_stock || DEFAULT_SETTINGS.quantumMaxAmountPerStock
+      quantumMaxAmountPerStock: data.quantum_max_amount_per_stock || DEFAULT_SETTINGS.quantumMaxAmountPerStock,
+      // 손절가 활성화 설정
+      defaultStopLossEnabled: data.default_stop_loss_enabled !== undefined ? data.default_stop_loss_enabled : DEFAULT_SETTINGS.defaultStopLossEnabled,
+      quantumDefaultStopLossEnabled: data.quantum_default_stop_loss_enabled !== undefined ? data.quantum_default_stop_loss_enabled : DEFAULT_SETTINGS.quantumDefaultStopLossEnabled
     };
 
     return NextResponse.json(settings);
@@ -122,6 +131,9 @@ export async function POST(request: NextRequest) {
       quantum_default_profit_percent: settings.quantumDefaultProfitPercent,
       quantum_default_stop_loss_percent: settings.quantumDefaultStopLossPercent,
       quantum_max_amount_per_stock: settings.quantumMaxAmountPerStock,
+      // 손절가 활성화 설정
+      default_stop_loss_enabled: settings.defaultStopLossEnabled,
+      quantum_default_stop_loss_enabled: settings.quantumDefaultStopLossEnabled,
       updated_at: new Date().toISOString()
     };
 

@@ -272,6 +272,7 @@ export default function StockAnalysis() {
     // DB에서 기본 설정값 가져오기
     let defaultProfitPercent = 1;
     let defaultStopLossPercent = 3;
+    let defaultStopLossEnabled = true;
 
     try {
       const response = await fetch('/api/trading-settings');
@@ -279,6 +280,7 @@ export default function StockAnalysis() {
       if (response.ok) {
         defaultProfitPercent = data.defaultProfitPercent;
         defaultStopLossPercent = data.defaultStopLossPercent;
+        defaultStopLossEnabled = data.defaultStopLossEnabled;
       }
     } catch (error) {
       console.error('설정 로드 실패:', error);
@@ -294,7 +296,7 @@ export default function StockAnalysis() {
       sellEnabled: true,
       sellProfitPercent: defaultProfitPercent,
       sellPrice: sellPrice,
-      stopLossEnabled: true,
+      stopLossEnabled: defaultStopLossEnabled,
       stopLossPercent: defaultStopLossPercent,
       stopLossPrice: stopLossPrice,
     });
@@ -356,6 +358,7 @@ export default function StockAnalysis() {
     let maxAmount = 50000;
     let defaultProfitPercent = 1;
     let defaultStopLossPercent = 3;
+    let defaultStopLossEnabled = true;
 
     try {
       const response = await fetch('/api/trading-settings');
@@ -364,6 +367,7 @@ export default function StockAnalysis() {
         maxAmount = data.maxAmountPerStock;
         defaultProfitPercent = data.defaultProfitPercent;
         defaultStopLossPercent = data.defaultStopLossPercent;
+        defaultStopLossEnabled = data.defaultStopLossEnabled;
       }
     } catch (error) {
       console.error('설정 로드 실패:', error);
@@ -386,7 +390,7 @@ export default function StockAnalysis() {
         sellProfitPercent: defaultProfitPercent,
         sellPrice: sellPrice,
         // 손절매 기본 설정
-        stopLossEnabled: true,
+        stopLossEnabled: defaultStopLossEnabled,
         stopLossPercent: defaultStopLossPercent,
         stopLossPrice: stopLossPrice,
       };

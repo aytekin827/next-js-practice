@@ -241,6 +241,7 @@ export default function QuantumRecommendation() {
     // DB에서 기본 설정값 가져오기
     let defaultProfitPercent = 1;
     let defaultStopLossPercent = 3;
+    let defaultStopLossEnabled = true;
 
     try {
       const response = await fetch('/api/trading-settings');
@@ -248,6 +249,7 @@ export default function QuantumRecommendation() {
       if (response.ok) {
         defaultProfitPercent = data.quantumDefaultProfitPercent || data.defaultProfitPercent || 1;
         defaultStopLossPercent = data.quantumDefaultStopLossPercent || data.defaultStopLossPercent || 3;
+        defaultStopLossEnabled = data.quantumDefaultStopLossEnabled !== undefined ? data.quantumDefaultStopLossEnabled : (data.defaultStopLossEnabled !== undefined ? data.defaultStopLossEnabled : true);
       }
     } catch (error) {
       console.error('설정 로드 실패:', error);
@@ -263,7 +265,7 @@ export default function QuantumRecommendation() {
       sellEnabled: true,
       sellProfitPercent: defaultProfitPercent,
       sellPrice: sellPrice,
-      stopLossEnabled: true,
+      stopLossEnabled: defaultStopLossEnabled,
       stopLossPercent: defaultStopLossPercent,
       stopLossPrice: stopLossPrice,
     });
@@ -323,6 +325,7 @@ export default function QuantumRecommendation() {
     let maxAmount = 50000;
     let defaultProfitPercent = 1;
     let defaultStopLossPercent = 3;
+    let defaultStopLossEnabled = true;
 
     try {
       const response = await fetch('/api/trading-settings');
@@ -331,6 +334,7 @@ export default function QuantumRecommendation() {
         maxAmount = data.quantumMaxAmountPerStock || data.maxAmountPerStock || 50000;
         defaultProfitPercent = data.quantumDefaultProfitPercent || data.defaultProfitPercent || 1;
         defaultStopLossPercent = data.quantumDefaultStopLossPercent || data.defaultStopLossPercent || 3;
+        defaultStopLossEnabled = data.quantumDefaultStopLossEnabled !== undefined ? data.quantumDefaultStopLossEnabled : (data.defaultStopLossEnabled !== undefined ? data.defaultStopLossEnabled : true);
       }
     } catch (error) {
       console.error('설정 로드 실패:', error);
@@ -351,7 +355,7 @@ export default function QuantumRecommendation() {
         sellEnabled: true,
         sellProfitPercent: defaultProfitPercent,
         sellPrice: sellPrice,
-        stopLossEnabled: true,
+        stopLossEnabled: defaultStopLossEnabled,
         stopLossPercent: defaultStopLossPercent,
         stopLossPrice: stopLossPrice,
       };
