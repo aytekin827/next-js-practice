@@ -75,8 +75,6 @@ export async function GET(request: NextRequest) {
     // KIS API 응답 데이터 파싱
     const output2 = balanceData.output2?.[0] || {};
 
-    console.log(output2)
-
     const assetData = {
       totalAssets: parseInt(output2.tot_evlu_amt || '0'), // 총평가금액
       totalAssetsChange: parseInt(output2.evlu_pfls_smtl_amt || '0'), // 평가손익합계금액
