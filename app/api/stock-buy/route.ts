@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '인증이 필요합니다' }, { status: 401 });
     }
 
-    const { symbol, quantity, price, orderType, sellEnabled, sellPrice, sellProfitPercent } = await request.json();
+    const { symbol, quantity, price, orderType, sellEnabled, sellPrice, sellProfitPercent, stopLossEnabled, stopLossPrice, stopLossPercent } = await request.json();
 
     if (!symbol || !quantity) {
       return NextResponse.json({ error: '종목코드와 수량은 필수입니다' }, { status: 400 });
@@ -75,11 +75,13 @@ export async function POST(request: NextRequest) {
     const buyOrderNumber = buyData.output?.ODNO || '';
     let sellOrderNumber = '';
     let sellOrderSuccess = true;
+    let stopLossOrderNumber = '';
+    let stopLossOrderSuccess = true;
 
-    // 매도 주문 처리 (활성화된 경우)
+    // 익절 매도 주문 처리 (활성화된 경우)
     if (sellEnabled && sellPrice > 0) {
       try {
-        // 매도 주문 API 호출
+        // 익절 매도 주문 API 호출
         const sellHeaders = createKISHeaders(kisConfig, accessToken);
         sellHeaders['tr_id'] = 'TTTC0801U'; // 주식주문(현금) 매도 TR_ID
 
@@ -89,7 +91,7 @@ export async function POST(request: NextRequest) {
           'PDNO': symbol, // 종목코드
           'ORD_DVSN': '00', // 지정가 매도
           'ORD_QTY': quantity.toString(), // 주문수량
-          'ORD_UNPR': sellPrice.toString(), // 매도가격
+          'ORD_UNPR': sellPrice.toString(), // 익절가격
         };
 
         const sellResponse = await fetch(
@@ -106,27 +108,86 @@ export async function POST(request: NextRequest) {
           if (sellData.rt_cd === '0') {
             sellOrderNumber = sellData.output?.ODNO || '';
           } else {
-            console.error('매도 주문 실패:', sellData.msg1);
+            console.error('익절 매도 주문 실패:', sellData.msg1);
             sellOrderSuccess = false;
           }
         } else {
-          console.error('매도 주문 API 호출 실패:', sellResponse.status);
+          console.error('익절 매도 주문 API 호출 실패:', sellResponse.status);
           sellOrderSuccess = false;
         }
       } catch (error) {
-        console.error('매도 주문 중 오류:', error);
+        console.error('익절 매도 주문 중 오류:', error);
         sellOrderSuccess = false;
       }
     }
 
+    // 손절 매도 주문 처리 (활성화된 경우)
+    if (stopLossEnabled && stopLossPrice > 0) {
+      try {
+        // 손절 매도 주문 API 호출
+        const stopLossHeaders = createKISHeaders(kisConfig, accessToken);
+        stopLossHeaders['tr_id'] = 'TTTC0801U'; // 주식주문(현금) 매도 TR_ID
+
+        const stopLossOrderData = {
+          'CANO': kisConfig.accountNumber,
+          'ACNT_PRDT_CD': kisConfig.accountProductCode,
+          'PDNO': symbol, // 종목코드
+          'ORD_DVSN': '00', // 지정가 매도
+          'ORD_QTY': quantity.toString(), // 주문수량
+          'ORD_UNPR': stopLossPrice.toString(), // 손절가격
+        };
+
+        const stopLossResponse = await fetch(
+          `${kisConfig.baseUrl}/uapi/domestic-stock/v1/trading/order-cash`,
+          {
+            method: 'POST',
+            headers: stopLossHeaders,
+            body: JSON.stringify(stopLossOrderData),
+          }
+        );
+
+        if (stopLossResponse.ok) {
+          const stopLossData = await stopLossResponse.json();
+          if (stopLossData.rt_cd === '0') {
+            stopLossOrderNumber = stopLossData.output?.ODNO || '';
+          } else {
+            console.error('손절 매도 주문 실패:', stopLossData.msg1);
+            stopLossOrderSuccess = false;
+          }
+        } else {
+          console.error('손절 매도 주문 API 호출 실패:', stopLossResponse.status);
+          stopLossOrderSuccess = false;
+        }
+      } catch (error) {
+        console.error('손절 매도 주문 중 오류:', error);
+        stopLossOrderSuccess = false;
+      }
+    }
+
+    // 메시지 생성
+    let message = '매수 주문이 전송되었습니다';
+    if (sellEnabled && stopLossEnabled) {
+      if (sellOrderSuccess && stopLossOrderSuccess) {
+        message = '매수+익절+손절 주문이 모두 전송되었습니다';
+      } else if (sellOrderSuccess || stopLossOrderSuccess) {
+        message = '매수 주문은 성공했으나 일부 매도 주문에 실패했습니다';
+      } else {
+        message = '매수 주문은 성공했으나 매도 주문들에 실패했습니다';
+      }
+    } else if (sellEnabled) {
+      message = sellOrderSuccess ? '매수+익절 주문이 전송되었습니다' : '매수 주문은 성공했으나 익절 주문에 실패했습니다';
+    } else if (stopLossEnabled) {
+      message = stopLossOrderSuccess ? '매수+손절 주문이 전송되었습니다' : '매수 주문은 성공했으나 손절 주문에 실패했습니다';
+    }
+
     return NextResponse.json({
       success: true,
-      message: sellEnabled
-        ? (sellOrderSuccess ? '매수+매도 주문이 전송되었습니다' : '매수 주문은 성공했으나 매도 주문에 실패했습니다')
-        : '매수 주문이 전송되었습니다',
+      message: message,
       buyOrderNumber: buyOrderNumber,
       sellOrderNumber: sellOrderNumber,
-      sellOrderSuccess: sellOrderSuccess
+      sellOrderSuccess: sellOrderSuccess,
+      stopLossOrderNumber: stopLossOrderNumber,
+      stopLossOrderSuccess: stopLossOrderSuccess
     });
   } catch (error) {
     console.error('매수 주문 실패:', error);

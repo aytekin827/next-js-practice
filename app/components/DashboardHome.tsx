@@ -34,8 +34,7 @@ const REFRESH_INTERVALS = {
 } as const;
 
 export default function DashboardHome() {
-  const [botActive, setBotActive] = useState(false);
-  const [selectedStrategy, setSelectedStrategy] = useState('easy');
+
   const [assetData, setAssetData] = useState<AssetData>({
     totalAssets: 0,
     totalAssetsChange: 0,
@@ -98,38 +97,7 @@ export default function DashboardHome() {
     }
   };
 
-  // 봇 제어 함수들
-  const toggleBot = async () => {
-    try {
-      setBotActive(!botActive);
 
-      const newLog: LogEntry = {
-        id: Date.now().toString(),
-        timestamp: new Date().toLocaleTimeString(),
-        message: botActive ? '트레이딩 봇이 중지되었습니다.' : '트레이딩 봇이 시작되었습니다.',
-        type: botActive ? 'warning' : 'success'
-      };
-      setLogs(prev => [newLog, ...prev.slice(0, 49)]);
-    } catch (error) {
-      console.error('봇 제어 실패:', error);
-    }
-  };
-
-  const emergencyStop = async () => {
-    try {
-      setBotActive(false);
-
-      const newLog: LogEntry = {
-        id: Date.now().toString(),
-        timestamp: new Date().toLocaleTimeString(),
-        message: '🚨 비상 정지 실행 - 모든 주문이 취소되었습니다.',
-        type: 'error'
-      };
-      setLogs(prev => [newLog, ...prev.slice(0, 49)]);
-    } catch (error) {
-      console.error('비상 정지 실패:', error);
-    }
-  };
 
   const sellStock = async (holdingId: string) => {
     try {
@@ -283,51 +251,7 @@ export default function DashboardHome() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* 봇 제어 패널 */}
-        <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-          <h2 className="text-lg font-semibold mb-4">🤖 봇 제어 패널</h2>
-
-          {/* 메인 스위치 */}
-          <div className="text-center mb-6">
-            <button
-              onClick={toggleBot}
-              className={`w-32 h-32 rounded-full text-xl font-bold transition-all ${
-                botActive
-                  ? 'bg-green-600 hover:bg-green-700 shadow-lg shadow-green-500/50'
-                  : 'bg-gray-600 hover:bg-gray-700'
-              }`}
-            >
-              {botActive ? 'STOP' : 'START'}
-            </button>
-            <div className={`mt-2 text-sm ${botActive ? 'text-green-400' : 'text-gray-400'}`}>
-              {botActive ? '트레이딩 봇 가동 중' : '대기 모드'}
-            </div>
-          </div>
-
-          {/* 전략 선택 */}
-          <div className="mb-4">
-            <label className="block text-sm text-gray-400 mb-2">전략 선택</label>
-            <select
-              value={selectedStrategy}
-              onChange={(e) => setSelectedStrategy(e.target.value)}
-              className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white"
-            >
-              <option value="easy">쉬운 전략 (단순 조건)</option>
-              <option value="volatility">변동성 돌파</option>
-              <option value="scalping">스캘핑</option>
-            </select>
-          </div>
-
-          {/* 비상 종료 */}
-          <button
-            onClick={emergencyStop}
-            className="w-full bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded font-semibold"
-          >
-            🚨 비상 종료
-          </button>
-        </div>
-
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* 보유 종목 */}
         <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
           <h2 className="text-lg font-semibold mb-4">📊 보유 종목</h2>

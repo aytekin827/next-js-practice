@@ -39,6 +39,8 @@ export default function StockAnalysis() {
     minVolume: 50000,
   });
 
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
+
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [initialLoading, setInitialLoading] = useState(false);
   const [topStocks, setTopStocks] = useState<StockData[]>([]);
@@ -53,13 +55,87 @@ export default function StockAnalysis() {
     sellEnabled: true,
     sellProfitPercent: 1, // 기본 1% 상승
     sellPrice: 0,
+    // 손절매 설정
+    stopLossEnabled: true,
+    stopLossPercent: 3, // 기본 3% 하락
+    stopLossPrice: 0,
   });
 
   // 카운트다운 타이머 상태
   const [countdown, setCountdown] = useState(0);
 
+  // 일괄매수 상태
+  const [bulkBuyModalOpen, setBulkBuyModalOpen] = useState(false);
+  const [bulkBuySettings, setBulkBuySettings] = useState<{
+    [symbol: string]: {
+      selected: boolean;
+      price: number;
+      quantity: number;
+      // 익절 설정
+      sellEnabled: boolean;
+      sellProfitPercent: number;
+      sellPrice: number;
+      // 손절매 설정
+      stopLossEnabled: boolean;
+      stopLossPercent: number;
+      stopLossPrice: number;
+    };
+  }>({});
+
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const countdownRef = useRef<NodeJS.Timeout | null>(null);
+
+  // DB에서 설정값 로드
+  const loadTradingSettings = async () => {
+    try {
+      const response = await fetch('/api/trading-settings');
+      const data = await response.json();
+
+      if (response.ok) {
+        setSettings(prev => ({
+          ...prev,
+          market: data.defaultMarket,
+          stockCount: data.defaultStockCount,
+          gapRangeMin: data.gapFilterMinPercent,
+          gapRangeMax: data.gapFilterMaxPercent,
+          minVolume: data.defaultMinVolume,
+        }));
+
+        // 매수 설정도 DB 값으로 업데이트
+        setBuySettings(prev => ({
+          ...prev,
+          sellProfitPercent: data.defaultProfitPercent,
+          stopLossPercent: data.defaultStopLossPercent,
+        }));
+      }
+    } catch (error) {
+      console.error('설정 로드 실패:', error);
+    } finally {
+      setSettingsLoaded(true);
+    }
+  };
+
+  // 컴포넌트 마운트 시 설정 로드
+  useEffect(() => {
+    loadTradingSettings();
+  }, []);
+
+  // 페이지가 포커스될 때마다 설정 다시 로드 (설정 페이지에서 변경 후 돌아올 때)
+  useEffect(() => {
+    const handleFocus = () => {
+      if (document.visibilityState === 'visible') {
+        loadTradingSettings();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleFocus);
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleFocus);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, []);
 
   // 등락률 상위 종목 조회 (분석 시작 시 한 번만)
   const fetchTopStocks = async () => {
@@ -189,18 +265,38 @@ export default function StockAnalysis() {
   };
 
   // 매수 모달 열기
-  const openBuyModal = (stock: FilteredStock) => {
+  const openBuyModal = async (stock: FilteredStock) => {
     setSelectedStock(stock);
     const buyPrice = stock.currentPrice;
-    const sellPrice = Math.round(buyPrice * 1.01); // 1% 상승가격으로 기본 설정
+
+    // DB에서 기본 설정값 가져오기
+    let defaultProfitPercent = 1;
+    let defaultStopLossPercent = 3;
+
+    try {
+      const response = await fetch('/api/trading-settings');
+      const data = await response.json();
+      if (response.ok) {
+        defaultProfitPercent = data.defaultProfitPercent;
+        defaultStopLossPercent = data.defaultStopLossPercent;
+      }
+    } catch (error) {
+      console.error('설정 로드 실패:', error);
+    }
+
+    const sellPrice = Math.round(buyPrice * (1 + defaultProfitPercent / 100));
+    const stopLossPrice = Math.round(buyPrice * (1 - defaultStopLossPercent / 100));
 
     setBuySettings({
       orderType: 'market',
       price: buyPrice,
       quantity: 1,
       sellEnabled: true,
-      sellProfitPercent: 1,
+      sellProfitPercent: defaultProfitPercent,
       sellPrice: sellPrice,
+      stopLossEnabled: true,
+      stopLossPercent: defaultStopLossPercent,
+      stopLossPrice: stopLossPrice,
     });
     setBuyModalOpen(true);
   };
@@ -224,6 +320,10 @@ export default function StockAnalysis() {
           sellEnabled: buySettings.sellEnabled,
           sellPrice: buySettings.sellPrice,
           sellProfitPercent: buySettings.sellProfitPercent,
+          // 손절매 주문 설정
+          stopLossEnabled: buySettings.stopLossEnabled,
+          stopLossPrice: buySettings.stopLossPrice,
+          stopLossPercent: buySettings.stopLossPercent,
         }),
       });
 
@@ -232,8 +332,12 @@ export default function StockAnalysis() {
       if (data.success) {
         let message = `매수 주문이 완료되었습니다.\n매수 주문번호: ${data.buyOrderNumber}`;
         if (buySettings.sellEnabled && data.sellOrderNumber) {
-          message += `\n매도 주문번호: ${data.sellOrderNumber}`;
-          message += `\n매도가격: ₩${buySettings.sellPrice.toLocaleString()}`;
+          message += `\n익절 주문번호: ${data.sellOrderNumber}`;
+          message += `\n익절가격: ₩${buySettings.sellPrice.toLocaleString()}`;
+        }
+        if (buySettings.stopLossEnabled && data.stopLossOrderNumber) {
+          message += `\n손절 주문번호: ${data.stopLossOrderNumber}`;
+          message += `\n손절가격: ₩${buySettings.stopLossPrice.toLocaleString()}`;
         }
         alert(message);
         setBuyModalOpen(false);
@@ -244,6 +348,127 @@ export default function StockAnalysis() {
       console.error('매수 주문 실패:', error);
       alert('매수 주문 중 오류가 발생했습니다.');
     }
+  };
+
+  // 일괄매수 모달 열기
+  const openBulkBuyModal = async () => {
+    // DB에서 최신 설정값 가져오기
+    let maxAmount = 50000;
+    let defaultProfitPercent = 1;
+    let defaultStopLossPercent = 3;
+
+    try {
+      const response = await fetch('/api/trading-settings');
+      const data = await response.json();
+      if (response.ok) {
+        maxAmount = data.maxAmountPerStock;
+        defaultProfitPercent = data.defaultProfitPercent;
+        defaultStopLossPercent = data.defaultStopLossPercent;
+      }
+    } catch (error) {
+      console.error('설정 로드 실패:', error);
+    }
+
+    const initialSettings: typeof bulkBuySettings = {};
+
+    filteredStocks.forEach(stock => {
+      const buyPrice = stock.openPrice; // 시가를 기본값으로
+      const defaultQuantity = buyPrice >= maxAmount ? 1 : Math.floor(maxAmount / buyPrice);
+      const sellPrice = Math.round(buyPrice * (1 + defaultProfitPercent / 100));
+      const stopLossPrice = Math.round(buyPrice * (1 - defaultStopLossPercent / 100));
+
+      initialSettings[stock.symbol] = {
+        selected: true, // 기본적으로 모든 종목 선택
+        price: buyPrice,
+        quantity: defaultQuantity,
+        // 익절 기본 설정
+        sellEnabled: true,
+        sellProfitPercent: defaultProfitPercent,
+        sellPrice: sellPrice,
+        // 손절매 기본 설정
+        stopLossEnabled: true,
+        stopLossPercent: defaultStopLossPercent,
+        stopLossPrice: stopLossPrice,
+      };
+    });
+
+    setBulkBuySettings(initialSettings);
+    setBulkBuyModalOpen(true);
+  };
+
+  // 일괄매수 실행
+  const executeBulkBuy = async () => {
+    const selectedStocks = Object.entries(bulkBuySettings).filter(([_, settings]) => settings.selected);
+
+    if (selectedStocks.length === 0) {
+      alert('매수할 종목을 선택해주세요.');
+      return;
+    }
+
+    let successCount = 0;
+    let failCount = 0;
+    const results: string[] = [];
+
+    for (const [symbol, settings] of selectedStocks) {
+      const stock = filteredStocks.find(s => s.symbol === symbol);
+      if (!stock) continue;
+
+      try {
+        const response = await fetch('/api/stock-buy', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            symbol: symbol,
+            quantity: settings.quantity,
+            price: settings.price,
+            orderType: 'limit', // 지정가로 주문
+            sellEnabled: settings.sellEnabled,
+            sellPrice: settings.sellPrice,
+            sellProfitPercent: settings.sellProfitPercent,
+            // 손절매 설정
+            stopLossEnabled: settings.stopLossEnabled,
+            stopLossPrice: settings.stopLossPrice,
+            stopLossPercent: settings.stopLossPercent,
+          }),
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          successCount++;
+          let resultMessage = `✅ ${stock.name}: 매수 성공`;
+          if (settings.sellEnabled && settings.stopLossEnabled) {
+            if (data.sellOrderSuccess && data.stopLossOrderSuccess) {
+              resultMessage += ' (익절+손절 설정 완료)';
+            } else if (data.sellOrderSuccess || data.stopLossOrderSuccess) {
+              resultMessage += ' (일부 매도 주문 실패)';
+            } else {
+              resultMessage += ' (매도 주문 실패)';
+            }
+          } else if (settings.sellEnabled) {
+            resultMessage += data.sellOrderSuccess ? ' (익절 설정 완료)' : ' (익절 주문 실패)';
+          } else if (settings.stopLossEnabled) {
+            resultMessage += data.stopLossOrderSuccess ? ' (손절 설정 완료)' : ' (손절 주문 실패)';
+          }
+          results.push(resultMessage);
+        } else {
+          failCount++;
+          results.push(`❌ ${stock.name}: ${data.error}`);
+        }
+      } catch (error) {
+        failCount++;
+        results.push(`❌ ${stock.name}: 주문 실패`);
+      }
+
+      // API 부하 방지를 위한 딜레이
+      await new Promise(resolve => setTimeout(resolve, 200));
+    }
+
+    const message = `일괄매수 완료\n성공: ${successCount}건, 실패: ${failCount}건\n\n${results.join('\n')}`;
+    alert(message);
+    setBulkBuyModalOpen(false);
   };
 
   // 컴포넌트 언마운트 시 정리
@@ -468,6 +693,18 @@ export default function StockAnalysis() {
                 ))}
               </tbody>
             </table>
+
+            {/* 일괄매수 버튼 */}
+            {filteredStocks.length > 0 && (
+              <div className="flex justify-end mt-4">
+                <button
+                  onClick={openBulkBuyModal}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-semibold transition-colors"
+                >
+                  일괄매수 ({filteredStocks.length}종목)
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -619,6 +856,293 @@ export default function StockAnalysis() {
                 className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded transition-colors"
               >
                 {buySettings.sellEnabled ? '매수+매도 주문' : '매수 주문'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 일괄매수 모달 */}
+      {bulkBuyModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 rounded-lg shadow-xl w-full max-w-4xl border border-gray-700 max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-700">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold">일괄매수 주문</h3>
+                <button
+                  onClick={() => setBulkBuyModalOpen(false)}
+                  className="text-gray-400 hover:text-gray-300 text-xl"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6">
+              <div className="mb-4">
+                <div className="text-sm text-gray-400 mb-2">
+                  총 {filteredStocks.length}개 종목 중 {Object.values(bulkBuySettings).filter(s => s.selected).length}개 선택됨
+                </div>
+              </div>
+
+              <div className="space-y-4 max-h-96 overflow-y-auto">
+                {filteredStocks.map((stock) => {
+                  const settings = bulkBuySettings[stock.symbol];
+                  if (!settings) return null;
+
+                  return (
+                    <div key={stock.symbol} className="bg-gray-700 rounded-lg p-4">
+                      <div className="flex items-start gap-4">
+                        {/* 체크박스 */}
+                        <div className="flex items-center pt-2">
+                          <input
+                            type="checkbox"
+                            checked={settings.selected}
+                            onChange={(e) => setBulkBuySettings(prev => ({
+                              ...prev,
+                              [stock.symbol]: { ...prev[stock.symbol], selected: e.target.checked }
+                            }))}
+                            className="w-4 h-4 text-blue-600 bg-gray-600 border-gray-500 rounded"
+                          />
+                        </div>
+
+                        {/* 종목 정보 */}
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between mb-3">
+                            <div>
+                              <div className="font-semibold">{stock.name}</div>
+                              <div className="text-sm text-gray-400">{stock.symbol}</div>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-sm text-gray-400">시가</div>
+                              <div className="font-bold">₩{stock.openPrice.toLocaleString()}</div>
+                            </div>
+                          </div>
+
+                          <div className="space-y-4">
+                            {/* 첫 번째 행: 매수 정보 */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              {/* 매수가 */}
+                              <div>
+                                <label className="block text-xs text-gray-400 mb-1">매수가</label>
+                                <input
+                                  type="number"
+                                  value={settings.price}
+                                  onChange={(e) => {
+                                    const price = parseInt(e.target.value) || 0;
+                                    const sellPrice = Math.round(price * (1 + settings.sellProfitPercent / 100));
+                                    const stopLossPrice = Math.round(price * (1 - settings.stopLossPercent / 100));
+                                    setBulkBuySettings(prev => ({
+                                      ...prev,
+                                      [stock.symbol]: {
+                                        ...prev[stock.symbol],
+                                        price,
+                                        sellPrice,
+                                        stopLossPrice
+                                      }
+                                    }));
+                                  }}
+                                  className="w-full bg-gray-600 border border-gray-500 rounded px-2 py-1 text-sm text-white"
+                                />
+                              </div>
+
+                              {/* 매수량 */}
+                              <div>
+                                <label className="block text-xs text-gray-400 mb-1">매수량</label>
+                                <input
+                                  type="number"
+                                  value={settings.quantity}
+                                  onChange={(e) => setBulkBuySettings(prev => ({
+                                    ...prev,
+                                    [stock.symbol]: { ...prev[stock.symbol], quantity: parseInt(e.target.value) || 1 }
+                                  }))}
+                                  min="1"
+                                  className="w-full bg-gray-600 border border-gray-500 rounded px-2 py-1 text-sm text-white"
+                                />
+                              </div>
+                            </div>
+
+                            {/* 두 번째 행: 익절 설정 */}
+                            <div className="bg-green-900/20 border border-green-700 rounded p-3">
+                              <div className="text-xs text-green-400 mb-2 font-semibold">💰 익절 설정</div>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                {/* 목표수익률 */}
+                                <div>
+                                  <label className="block text-xs text-gray-400 mb-1">목표수익률(%)</label>
+                                  <input
+                                    type="number"
+                                    value={settings.sellProfitPercent}
+                                    onChange={(e) => {
+                                      const percent = parseFloat(e.target.value) || 1;
+                                      const sellPrice = Math.round(settings.price * (1 + percent / 100));
+                                      setBulkBuySettings(prev => ({
+                                        ...prev,
+                                        [stock.symbol]: {
+                                          ...prev[stock.symbol],
+                                          sellProfitPercent: percent,
+                                          sellPrice
+                                        }
+                                      }));
+                                    }}
+                                    step="0.1"
+                                    min="0.1"
+                                    className="w-full bg-gray-600 border border-gray-500 rounded px-2 py-1 text-sm text-white"
+                                  />
+                                </div>
+
+                                {/* 익절가 */}
+                                <div>
+                                  <label className="block text-xs text-gray-400 mb-1">익절가</label>
+                                  <input
+                                    type="number"
+                                    value={settings.sellPrice}
+                                    onChange={(e) => setBulkBuySettings(prev => ({
+                                      ...prev,
+                                      [stock.symbol]: { ...prev[stock.symbol], sellPrice: parseInt(e.target.value) || 0 }
+                                    }))}
+                                    className="w-full bg-gray-600 border border-gray-500 rounded px-2 py-1 text-sm text-white"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* 세 번째 행: 손절 설정 */}
+                            <div className="bg-red-900/20 border border-red-700 rounded p-3">
+                              <div className="flex items-center justify-between mb-2">
+                                <div className="text-xs text-red-400 font-semibold">🛡️ 손절 설정</div>
+                                <button
+                                  onClick={() => setBulkBuySettings(prev => ({
+                                    ...prev,
+                                    [stock.symbol]: { ...prev[stock.symbol], stopLossEnabled: !prev[stock.symbol].stopLossEnabled }
+                                  }))}
+                                  className={`px-2 py-1 rounded text-xs font-semibold transition-colors ${
+                                    settings.stopLossEnabled
+                                      ? 'bg-red-600 text-white'
+                                      : 'bg-gray-600 text-gray-300'
+                                  }`}
+                                >
+                                  {settings.stopLossEnabled ? 'ON' : 'OFF'}
+                                </button>
+                              </div>
+
+                              {settings.stopLossEnabled && (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                  {/* 손절률 */}
+                                  <div>
+                                    <label className="block text-xs text-gray-400 mb-1">손절률(%)</label>
+                                    <input
+                                      type="number"
+                                      value={settings.stopLossPercent}
+                                      onChange={(e) => {
+                                        const percent = parseFloat(e.target.value) || 3;
+                                        const stopLossPrice = Math.round(settings.price * (1 - percent / 100));
+                                        setBulkBuySettings(prev => ({
+                                          ...prev,
+                                          [stock.symbol]: {
+                                            ...prev[stock.symbol],
+                                            stopLossPercent: percent,
+                                            stopLossPrice
+                                          }
+                                        }));
+                                      }}
+                                      step="0.1"
+                                      min="0.1"
+                                      className="w-full bg-gray-600 border border-gray-500 rounded px-2 py-1 text-sm text-white"
+                                    />
+                                  </div>
+
+                                  {/* 손절가 */}
+                                  <div>
+                                    <label className="block text-xs text-gray-400 mb-1">손절가</label>
+                                    <input
+                                      type="number"
+                                      value={settings.stopLossPrice}
+                                      onChange={(e) => setBulkBuySettings(prev => ({
+                                        ...prev,
+                                        [stock.symbol]: { ...prev[stock.symbol], stopLossPrice: parseInt(e.target.value) || 0 }
+                                      }))}
+                                      className="w-full bg-gray-600 border border-gray-500 rounded px-2 py-1 text-sm text-white"
+                                    />
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* 예상 금액 */}
+                          <div className="mt-3 space-y-2 text-sm">
+                            <div className="flex justify-between">
+                              <div className="text-gray-400">매수 금액:</div>
+                              <div className="text-white font-semibold">₩{(settings.price * settings.quantity).toLocaleString()}</div>
+                            </div>
+                            <div className="flex justify-between">
+                              <div className="text-green-400">예상 익절 수익:</div>
+                              <div className="text-green-400 font-semibold">₩{((settings.sellPrice - settings.price) * settings.quantity).toLocaleString()}</div>
+                            </div>
+                            {settings.stopLossEnabled && (
+                              <div className="flex justify-between">
+                                <div className="text-red-400">예상 손절 손실:</div>
+                                <div className="text-red-400 font-semibold">₩{((settings.price - settings.stopLossPrice) * settings.quantity).toLocaleString()}</div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* 전체 선택/해제 */}
+              <div className="mt-6 flex items-center justify-between">
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setBulkBuySettings(prev => {
+                      const updated = { ...prev };
+                      Object.keys(updated).forEach(symbol => {
+                        updated[symbol].selected = true;
+                      });
+                      return updated;
+                    })}
+                    className="text-sm bg-gray-600 hover:bg-gray-700 text-white px-3 py-1 rounded"
+                  >
+                    전체 선택
+                  </button>
+                  <button
+                    onClick={() => setBulkBuySettings(prev => {
+                      const updated = { ...prev };
+                      Object.keys(updated).forEach(symbol => {
+                        updated[symbol].selected = false;
+                      });
+                      return updated;
+                    })}
+                    className="text-sm bg-gray-600 hover:bg-gray-700 text-white px-3 py-1 rounded"
+                  >
+                    전체 해제
+                  </button>
+                </div>
+
+                <div className="text-sm text-gray-400">
+                  총 예상 매수 금액: ₩{Object.entries(bulkBuySettings)
+                    .filter(([_, settings]) => settings.selected)
+                    .reduce((sum, [_, settings]) => sum + (settings.price * settings.quantity), 0)
+                    .toLocaleString()}
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 border-t border-gray-700 flex gap-3">
+              <button
+                onClick={() => setBulkBuyModalOpen(false)}
+                className="flex-1 bg-gray-600 hover:bg-gray-700 text-white py-2 px-4 rounded transition-colors"
+              >
+                취소
+              </button>
+              <button
+                onClick={executeBulkBuy}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded transition-colors"
+              >
+                일괄매수 실행
               </button>
             </div>
           </div>

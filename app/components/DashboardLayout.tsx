@@ -11,8 +11,8 @@ interface User {
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
-  currentPage: 'dashboard' | 'analysis';
-  onPageChange: (page: 'dashboard' | 'analysis') => void;
+  currentPage: 'dashboard' | 'analysis' | 'settings';
+  onPageChange: (page: 'dashboard' | 'analysis' | 'settings') => void;
 }
 
 export default function DashboardLayout({ children, currentPage, onPageChange }: DashboardLayoutProps) {
@@ -80,6 +80,12 @@ export default function DashboardLayout({ children, currentPage, onPageChange }:
       name: '시초가 갭 & 돌파(Gap & Breakout) 전략',
       icon: '📈',
       description: '시초가 갭을 이용한 돌파 전략'
+    },
+    {
+      id: 'settings' as const,
+      name: '트레이딩 설정',
+      icon: '⚙️',
+      description: '전략 및 기본값 설정'
     }
   ];
 

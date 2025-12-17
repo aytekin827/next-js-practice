@@ -81,7 +81,7 @@ export async function GET(request: NextRequest) {
       totalAssets: parseInt(output2.tot_evlu_amt || '0'), // 총평가금액
       totalAssetsChange: parseInt(output2.evlu_pfls_smtl_amt || '0'), // 평가손익합계금액
       realizedPnL: parseInt(output2.rlzt_pfls || '0'), // 실현손익
-      buyingPower: parseInt(output2.dnca_tot_amt || '0'), // 주문가능현금
+      buyingPower: parseInt(output2.prvs_rcdl_excc_amt || '0'), // 주문가능현금
       totalReturn: parseFloat(output2.tot_evlu_pfls_rt || '0') // 총평가손익률
     };
 
