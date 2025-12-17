@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
           if (output) {
             stockData.push({
               symbol: symbol,
-              name: output.hts_kor_isnm || '알 수 없음',
+              name: output.rprs_mrkt_kor_name || '알 수 없음',
               currentPrice: parseInt(output.stck_prpr || '0'),
               changeRate: parseFloat(output.prdy_ctrt || '0'),
               volume: parseInt(output.acml_vol || '0'),

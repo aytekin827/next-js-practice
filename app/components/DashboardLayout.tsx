@@ -77,9 +77,9 @@ export default function DashboardLayout({ children, currentPage, onPageChange }:
     },
     {
       id: 'analysis' as const,
-      name: '주식데이터 분석',
+      name: '시초가 갭 & 돌파(Gap & Breakout) 전략',
       icon: '📈',
-      description: '시장 분석 및 데이터 조회'
+      description: '시초가 갭을 이용한 돌파 전략'
     }
   ];
 

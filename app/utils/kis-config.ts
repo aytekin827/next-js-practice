@@ -48,13 +48,13 @@ export async function getKISConfig(userId: string): Promise<KISConfig | null> {
 /**
  * KIS API 호출을 위한 공통 헤더를 생성합니다
  */
-export function createKISHeaders(config: KISConfig, accessToken?: string) {
+export function createKISHeaders(config: KISConfig, accessToken?: string, tr_id?: string) {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json; charset=utf-8',
     'authorization': accessToken ? `Bearer ${accessToken}` : '',
     'appkey': config.appKey,
     'appsecret': config.appSecret,
-    'tr_id': '', // API별로 설정 필요
+    'tr_id': tr_id ? tr_id : '', // API별로 설정 필요
   };
 
   return headers;
@@ -189,7 +189,7 @@ export async function getKISAccessToken(config: KISConfig, userId: string): Prom
     // 1. 먼저 저장된 유효한 토큰이 있는지 확인
     const storedToken = await getStoredKISToken(userId);
     if (storedToken) {
-      console.log('캐시된 KIS 토큰 사용');
+      // console.log('캐시된 KIS 토큰 사용');
       return storedToken;
     }
 
