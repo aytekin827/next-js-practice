@@ -7,6 +7,7 @@
 
 import os
 from datetime import datetime
+from pathlib import Path
 import warnings
 
 # pykrx 쪽에서 나오는 pkg_resources / FutureWarning 노이즈 제거
@@ -253,9 +254,9 @@ def run_single_strategy(df: pd.DataFrame, as_of: str, timestamp: str, choice: st
     pd.set_option("display.max_columns", 80)
     pd.set_option("display.width", 240)
 
-    print("\n==============================")
+    print("\n==========================================================")
     print(f"=== {as_of} 기준 {title} 상위 {TOP_N_TO_SHOW} 종목 ===")
-    print("==============================\n")
+    print("==========================================================\n")
 
     cols_to_show = [
         "종목명", "종목코드", "시장", "시총구간", "리스크구간", "스타일",
@@ -267,9 +268,9 @@ def run_single_strategy(df: pd.DataFrame, as_of: str, timestamp: str, choice: st
     cols_to_show = [c for c in cols_to_show if c in top.columns]
     print(top[cols_to_show])
 
-    print("\n==============================")
+    print("\n==========================================================")
     print(f"=== {title} 상위 종목 애널리스트 코멘트 ===")
-    print("==============================\n")
+    print("============================================================\n")
 
     for i, (ticker, row) in enumerate(top.iterrows(), start=1):
         print(f"[{i}] ------------------------------------------")
@@ -298,7 +299,13 @@ def run_all_strategies(df: pd.DataFrame, as_of: str, timestamp: str):
 
         df_ranked = reorder_columns_for_output(df_ranked)
 
+        # 기존 프로젝트
         outfile = os.path.join(RESULT_DIR, f"{prefix}_{timestamp}.csv")
+
+        # 자동화에 사용할 경로
+        outfile = Path(rf'C:\Users\ok\Desktop\BlogAlmighty\data\stock_propick\{datetime.today().strftime("%Y%m%d")}\{prefix}.csv')
+        outfile.parent.mkdir(parents=True, exist_ok=True)
+
         if choice == "14":
             df_to_save = df_ranked.head(50).copy()
         else:
