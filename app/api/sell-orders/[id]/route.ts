@@ -4,7 +4,7 @@ import { getKISConfig, getKISAccessToken, createKISHeaders } from '@/utils/kis-c
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = await createClient();
@@ -16,7 +16,7 @@ export async function PUT(
     }
 
     const { sellPrice, symbol, quantity } = await request.json();
-    const orderId = params.id;
+    const { id: orderId } = await params;
 
     // 입력값 검증
     if (!sellPrice || sellPrice <= 0) {
@@ -107,7 +107,7 @@ export async function PUT(
 // 주문 취소 API
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = await createClient();
@@ -118,7 +118,7 @@ export async function DELETE(
       return NextResponse.json({ error: '인증이 필요합니다' }, { status: 401 });
     }
 
-    const orderId = params.id;
+    const { id: orderId } = await params;
 
     // KIS 설정 가져오기
     const kisConfig = await getKISConfig(user.id);
