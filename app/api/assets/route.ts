@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
 
     // 계좌 잔고 조회 API 호출
     const headers = createKISHeaders(kisConfig, accessToken);
-    headers['tr_id'] = 'TTTC8434R'; // 계좌잔고조회 TR_ID
+    headers['tr_id'] = 'TTTC8494R'; // 계좌잔고조회 TR_ID
 
     const queryParams = new URLSearchParams({
       'CANO': kisConfig.accountNumber,
@@ -42,12 +42,13 @@ export async function GET(request: NextRequest) {
       'FUND_STTL_ICLD_YN': 'N',
       'FNCG_AMT_AUTO_RDPT_YN': 'N',
       'PRCS_DVSN': '01',
+      'COST_ICLD_YN': '',
       'CTX_AREA_FK100': '',
       'CTX_AREA_NK100': ''
     });
 
     const balanceResponse = await fetch(
-      `${kisConfig.baseUrl}/uapi/domestic-stock/v1/trading/inquire-balance?${queryParams}`,
+      `${kisConfig.baseUrl}	/uapi/domestic-stock/v1/trading/inquire-balance-rlz-pl?${queryParams}`,
       {
         method: 'GET',
         headers: {
@@ -80,7 +81,7 @@ export async function GET(request: NextRequest) {
       totalAssetsChange: parseInt(output2.evlu_pfls_smtl_amt || '0'), // 평가손익합계금액
       realizedPnL: parseInt(output2.rlzt_pfls || '0'), // 실현손익
       buyingPower: parseInt(output2.prvs_rcdl_excc_amt || '0'), // 주문가능현금
-      totalReturn: parseFloat(output2.tot_evlu_pfls_rt || '0') // 총평가손익률
+      totalReturn: parseFloat(output2.rlzt_erng_rt || '0') // 총평가손익률
     };
 
     return NextResponse.json(assetData);
