@@ -264,10 +264,17 @@ export default function StockAnalysis() {
     }
   };
 
+  // 1% 할인된 가격을 10원 단위로 반올림하는 함수
+  const calculateDiscountedPrice = (price: number) => {
+    const discounted = price * 0.99;
+    return Math.round(discounted / 10) * 10;
+  };
+
   // 매수 모달 열기
   const openBuyModal = async (stock: FilteredStock) => {
     setSelectedStock(stock);
-    const buyPrice = stock.currentPrice;
+    // 현재가에서 1% 낮춘 가격을 10원 단위로 반올림하여 기본 매수가로 설정
+    const buyPrice = calculateDiscountedPrice(stock.currentPrice);
 
     // DB에서 기본 설정값 가져오기
     let defaultProfitPercent = 1;
@@ -290,7 +297,7 @@ export default function StockAnalysis() {
     const stopLossPrice = Math.round(buyPrice * (1 - defaultStopLossPercent / 100));
 
     setBuySettings({
-      orderType: 'market',
+      orderType: 'limit', // 지정가로 변경 (1% 낮춘 가격이므로)
       price: buyPrice,
       quantity: 1,
       sellEnabled: true,
@@ -376,7 +383,8 @@ export default function StockAnalysis() {
     const initialSettings: typeof bulkBuySettings = {};
 
     filteredStocks.forEach(stock => {
-      const buyPrice = stock.openPrice; // 시가를 기본값으로
+      // 시가에서 1% 낮춘 가격을 10원 단위로 반올림하여 기본값으로
+      const buyPrice = calculateDiscountedPrice(stock.openPrice);
       const defaultQuantity = buyPrice >= maxAmount ? 1 : Math.floor(maxAmount / buyPrice);
       const sellPrice = Math.round(buyPrice * (1 + defaultProfitPercent / 100));
       const stopLossPrice = Math.round(buyPrice * (1 - defaultStopLossPercent / 100));
@@ -744,7 +752,20 @@ export default function StockAnalysis() {
                 <label className="block text-sm text-gray-400 mb-2">주문 타입</label>
                 <select
                   value={buySettings.orderType}
-                  onChange={(e) => setBuySettings(prev => ({ ...prev, orderType: e.target.value as 'market' | 'limit' }))}
+                  onChange={(e) => {
+                    const newOrderType = e.target.value as 'market' | 'limit';
+                    const newPrice = newOrderType === 'market' ? calculateDiscountedPrice(selectedStock.currentPrice) : selectedStock.currentPrice;
+                    const sellPrice = Math.round(newPrice * (1 + buySettings.sellProfitPercent / 100));
+                    const stopLossPrice = Math.round(newPrice * (1 - buySettings.stopLossPercent / 100));
+
+                    setBuySettings(prev => ({
+                      ...prev,
+                      orderType: newOrderType,
+                      price: newPrice,
+                      sellPrice: sellPrice,
+                      stopLossPrice: stopLossPrice
+                    }));
+                  }}
                   className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white"
                 >
                   <option value="market">시장가</option>
@@ -803,7 +824,7 @@ export default function StockAnalysis() {
                         value={buySettings.sellProfitPercent}
                         onChange={(e) => {
                           const percent = parseFloat(e.target.value) || 1;
-                          const buyPrice = buySettings.orderType === 'market' ? selectedStock.currentPrice : buySettings.price;
+                          const buyPrice = buySettings.orderType === 'market' ? calculateDiscountedPrice(selectedStock.currentPrice) : buySettings.price;
                           const sellPrice = Math.round(buyPrice * (1 + percent / 100));
                           setBuySettings(prev => ({
                             ...prev,
@@ -832,7 +853,7 @@ export default function StockAnalysis() {
                     <div className="bg-green-900/20 border border-green-700 rounded p-3">
                       <div className="text-sm text-green-400">예상 수익</div>
                       <div className="text-lg font-bold text-green-400">
-                        ₩{((buySettings.sellPrice - (buySettings.orderType === 'market' ? selectedStock.currentPrice : buySettings.price)) * buySettings.quantity).toLocaleString()}
+                        ₩{((buySettings.sellPrice - (buySettings.orderType === 'market' ? calculateDiscountedPrice(selectedStock.currentPrice) : buySettings.price)) * buySettings.quantity).toLocaleString()}
                       </div>
                     </div>
                   </div>
@@ -843,7 +864,7 @@ export default function StockAnalysis() {
               <div className="bg-gray-700 rounded p-3">
                 <div className="text-sm text-gray-400">예상 주문 금액</div>
                 <div className="text-lg font-bold">
-                  ₩{((buySettings.orderType === 'market' ? selectedStock.currentPrice : buySettings.price) * buySettings.quantity).toLocaleString()}
+                  ₩{((buySettings.orderType === 'market' ? calculateDiscountedPrice(selectedStock.currentPrice) : buySettings.price) * buySettings.quantity).toLocaleString()}
                 </div>
               </div>
             </div>

@@ -11,7 +11,7 @@ interface TradingSettings {
   defaultStockCount: number;
   defaultMinVolume: number;
   defaultMarket: 'KOSPI' | 'KOSDAQ';
-  // 퀀텀종목추천 관련 설정
+  // 퀀트종목추천 관련 설정
   quantumDefaultProfitPercent: number;
   quantumDefaultStopLossPercent: number;
   quantumMaxAmountPerStock: number;
@@ -30,7 +30,7 @@ export default function TradingSettings() {
     defaultStockCount: 20,
     defaultMinVolume: 50000,
     defaultMarket: 'KOSPI',
-    // 퀀텀종목추천 기본값
+    // 퀀트종목추천 기본값
     quantumDefaultProfitPercent: 1.0,
     quantumDefaultStopLossPercent: 3.0,
     quantumMaxAmountPerStock: 50000,
@@ -109,7 +109,7 @@ export default function TradingSettings() {
       defaultStockCount: 20,
       defaultMinVolume: 50000,
       defaultMarket: 'KOSPI',
-      // 퀀텀종목추천 기본값
+      // 퀀트종목추천 기본값
       quantumDefaultProfitPercent: 1.0,
       quantumDefaultStopLossPercent: 3.0,
       quantumMaxAmountPerStock: 50000,
@@ -388,7 +388,7 @@ export default function TradingSettings() {
         )}
       </div>
 
-      {/* 퀀텀종목추천 설정 */}
+      {/* 퀀트종목추천 설정 */}
       <div className="bg-gray-800 rounded-lg border border-gray-700">
         <div
           className="p-6 cursor-pointer hover:bg-gray-700/30 transition-colors"
@@ -398,8 +398,8 @@ export default function TradingSettings() {
             <div className="flex items-center gap-3">
               <span className="text-2xl">🚀</span>
               <div>
-                <h2 className="text-lg font-semibold">퀀텀종목추천 설정</h2>
-                <p className="text-sm text-gray-400">CSV 파일 업로드를 통한 퀀텀 종목 추천에서 사용되는 설정값</p>
+                <h2 className="text-lg font-semibold">퀀트종목추천 설정</h2>
+                <p className="text-sm text-gray-400">CSV 파일 업로드를 통한 퀀트 종목 추천에서 사용되는 설정값</p>
               </div>
             </div>
             <div className={`transform transition-transform ${expandedSections.quantum ? 'rotate-180' : ''}`}>
@@ -420,7 +420,7 @@ export default function TradingSettings() {
                   {/* 손절가 활성화 토글 */}
                   <div className="bg-gray-600/50 rounded p-3 border border-gray-500">
                     <div className="flex items-center justify-between mb-2">
-                      <label className="text-sm text-gray-300 font-medium">퀀텀 기본 손절가 사용</label>
+                      <label className="text-sm text-gray-300 font-medium">퀀트 기본 손절가 사용</label>
                       <button
                         onClick={() => setSettings(prev => ({ ...prev, quantumDefaultStopLossEnabled: !prev.quantumDefaultStopLossEnabled }))}
                         className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
@@ -435,12 +435,12 @@ export default function TradingSettings() {
                       </button>
                     </div>
                     <div className="text-xs text-gray-400">
-                      활성화 시 퀀텀 종목 매수와 동시에 손절 주문이 자동으로 설정됩니다
+                      활성화 시 퀀트 종목 매수와 동시에 손절 주문이 자동으로 설정됩니다
                     </div>
                   </div>
 
                   <div className={`${!settings.quantumDefaultStopLossEnabled ? 'opacity-50' : ''}`}>
-                    <label className="block text-sm text-gray-400 mb-2">퀀텀 기본 손절 퍼센트 (%)</label>
+                    <label className="block text-sm text-gray-400 mb-2">퀀트 기본 손절 퍼센트 (%)</label>
                     <input
                       type="number"
                       value={settings.quantumDefaultStopLossPercent}
@@ -454,11 +454,11 @@ export default function TradingSettings() {
                       max="50"
                       className="w-full bg-gray-600 border border-gray-500 rounded px-3 py-2 text-white disabled:opacity-50 disabled:cursor-not-allowed"
                     />
-                    <div className="text-xs text-gray-500 mt-1">퀀텀 종목 매수가 대비 하락 시 자동 매도할 퍼센트</div>
+                    <div className="text-xs text-gray-500 mt-1">퀀트 종목 매수가 대비 하락 시 자동 매도할 퍼센트</div>
                   </div>
 
                   <div>
-                    <label className="block text-sm text-gray-400 mb-2">퀀텀 기본 익절 퍼센트 (%)</label>
+                    <label className="block text-sm text-gray-400 mb-2">퀀트 기본 익절 퍼센트 (%)</label>
                     <input
                       type="number"
                       value={settings.quantumDefaultProfitPercent}
@@ -471,7 +471,7 @@ export default function TradingSettings() {
                       max="50"
                       className="w-full bg-gray-600 border border-gray-500 rounded px-3 py-2 text-white"
                     />
-                    <div className="text-xs text-gray-500 mt-1">퀀텀 종목 매수가 대비 상승 시 자동 매도할 퍼센트</div>
+                    <div className="text-xs text-gray-500 mt-1">퀀트 종목 매수가 대비 상승 시 자동 매도할 퍼센트</div>
                   </div>
                 </div>
               </div>
@@ -480,7 +480,7 @@ export default function TradingSettings() {
               <div className="bg-gray-700/50 rounded-lg p-4">
                 <h3 className="text-md font-semibold mb-4 text-gray-200">📦 일괄매수 설정</h3>
                 <div>
-                  <label className="block text-sm text-gray-400 mb-2">퀀텀 종목당 최대 금액 (원)</label>
+                  <label className="block text-sm text-gray-400 mb-2">퀀트 종목당 최대 금액 (원)</label>
                   <input
                     type="number"
                     value={settings.quantumMaxAmountPerStock}
@@ -494,7 +494,7 @@ export default function TradingSettings() {
                     className="w-full bg-gray-600 border border-gray-500 rounded px-3 py-2 text-white"
                   />
                   <div className="text-xs text-gray-500 mt-1">
-                    퀀텀 일괄매수 시 종목당 최대 투자 금액<br/>
+                    퀀트 일괄매수 시 종목당 최대 투자 금액<br/>
                     현재 설정: ₩{settings.quantumMaxAmountPerStock.toLocaleString()}
                   </div>
                 </div>

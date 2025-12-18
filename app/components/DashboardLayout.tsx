@@ -83,9 +83,9 @@ export default function DashboardLayout({ children, currentPage, onPageChange }:
     },
     {
       id: 'quantum-recommendation' as const,
-      name: '퀀텀종목추천',
+      name: '퀀트종목추천',
       icon: '🚀',
-      description: 'CSV 파일 업로드를 통한 퀀텀 종목 추천 및 매수'
+      description: 'CSV 파일 업로드를 통한 퀀트 종목 추천 및 매수'
     },
     {
       id: 'settings' as const,

@@ -6,7 +6,7 @@ import LoginForm from './components/LoginForm';
 import DashboardLayout from './components/DashboardLayout';
 import DashboardHome from './components/DashboardHome';
 import StockAnalysis from './components/StockAnalysis';
-import QuantumRecommendation from './components/QuantumRecommendation';
+import QuantRecommendation from './components/QuantRecommendation';
 import TradingSettings from './components/TradingSettings';
 
 interface User {
@@ -61,7 +61,7 @@ export default function TradingDashboard() {
     >
       {currentPage === 'dashboard' && <DashboardHome />}
       {currentPage === 'analysis' && <StockAnalysis />}
-      {currentPage === 'quantum-recommendation' && <QuantumRecommendation />}
+      {currentPage === 'quantum-recommendation' && <QuantRecommendation />}
       {currentPage === 'settings' && <TradingSettings />}
     </DashboardLayout>
   );

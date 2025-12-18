@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 
-interface QuantumStock {
+interface QuantStock {
   종목명: string;
   종목코드: string;
   종가: number;
@@ -50,9 +50,9 @@ interface FilterSettings {
   };
 }
 
-export default function QuantumRecommendation() {
-  const [stocks, setStocks] = useState<QuantumStock[]>([]);
-  const [filteredStocks, setFilteredStocks] = useState<QuantumStock[]>([]);
+export default function QuantRecommendation() {
+  const [stocks, setStocks] = useState<QuantStock[]>([]);
+  const [filteredStocks, setFilteredStocks] = useState<QuantStock[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadMessage, setUploadMessage] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -82,7 +82,7 @@ export default function QuantumRecommendation() {
   const [showFilters, setShowFilters] = useState(false);
 
   // 필터링 적용 함수
-  const applyFilters = useCallback((stockList: QuantumStock[]) => {
+  const applyFilters = useCallback((stockList: QuantStock[]) => {
     return stockList.filter(stock => {
       // 시장 필터
       if (filters.market !== 'ALL' && stock.시장 !== filters.market) return false;
@@ -149,7 +149,7 @@ export default function QuantumRecommendation() {
   }, [stocks, filters, applyFilters]);
 
   // 매수 모달 상태
-  const [selectedStock, setSelectedStock] = useState<QuantumStock | null>(null);
+  const [selectedStock, setSelectedStock] = useState<QuantStock | null>(null);
   const [buyModalOpen, setBuyModalOpen] = useState(false);
   const [buySettings, setBuySettings] = useState({
     orderType: 'market' as 'market' | 'limit',
@@ -193,7 +193,7 @@ export default function QuantumRecommendation() {
       const formData = new FormData();
       formData.append('csvFile', file);
 
-      const response = await fetch('/api/quantum-upload', {
+      const response = await fetch('/api/quant-upload', {
         method: 'POST',
         body: formData,
       });
@@ -204,9 +204,9 @@ export default function QuantumRecommendation() {
         setStocks(data.data);
         setUploadMessage(`✅ ${data.message}`);
         // 필터 범위를 데이터에 맞게 자동 조정
-        const prices = data.data.map((s: QuantumStock) => s.종가);
-        const totalScores = data.data.map((s: QuantumStock) => s.total_score);
-        const pers = data.data.map((s: QuantumStock) => s.PER).filter((p: number) => p > 0);
+        const prices = data.data.map((s: QuantStock) => s.종가);
+        const totalScores = data.data.map((s: QuantStock) => s.total_score);
+        const pers = data.data.map((s: QuantStock) => s.PER).filter((p: number) => p > 0);
 
         setFilters(prev => ({
           ...prev,
@@ -233,10 +233,17 @@ export default function QuantumRecommendation() {
     }
   };
 
+  // 1% 할인된 가격을 10원 단위로 반올림하는 함수
+  const calculateDiscountedPrice = (price: number) => {
+    const discounted = price * 0.99;
+    return Math.round(discounted / 10) * 10;
+  };
+
   // 매수 모달 열기
-  const openBuyModal = async (stock: QuantumStock) => {
+  const openBuyModal = async (stock: QuantStock) => {
     setSelectedStock(stock);
-    const buyPrice = stock.종가;
+    // 종가에서 1% 낮춘 가격을 10원 단위로 반올림하여 기본 매수가로 설정
+    const buyPrice = calculateDiscountedPrice(stock.종가);
 
     // DB에서 기본 설정값 가져오기
     let defaultProfitPercent = 1;
@@ -259,7 +266,7 @@ export default function QuantumRecommendation() {
     const stopLossPrice = Math.round(buyPrice * (1 - defaultStopLossPercent / 100));
 
     setBuySettings({
-      orderType: 'market',
+      orderType: 'limit', // 지정가로 변경 (1% 낮춘 가격이므로)
       price: buyPrice,
       quantity: 1,
       sellEnabled: true,
@@ -343,7 +350,8 @@ export default function QuantumRecommendation() {
     const initialSettings: typeof bulkBuySettings = {};
 
     filteredStocks.forEach(stock => {
-      const buyPrice = stock.종가;
+      // 종가에서 1% 낮춘 가격을 10원 단위로 반올림하여 기본값으로
+      const buyPrice = calculateDiscountedPrice(stock.종가);
       const defaultQuantity = buyPrice >= maxAmount ? 1 : Math.floor(maxAmount / buyPrice);
       const sellPrice = Math.round(buyPrice * (1 + defaultProfitPercent / 100));
       const stopLossPrice = Math.round(buyPrice * (1 - defaultStopLossPercent / 100));
@@ -443,7 +451,7 @@ export default function QuantumRecommendation() {
     <div className="p-6 space-y-6">
       {/* 파일 업로드 섹션 */}
       <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-        <h2 className="text-xl font-semibold mb-4">🚀 퀀텀종목추천 CSV 업로드</h2>
+        <h2 className="text-xl font-semibold mb-4">🚀 퀀트종목추천 CSV 업로드</h2>
 
         <div className="space-y-4">
           <div>
@@ -754,7 +762,7 @@ export default function QuantumRecommendation() {
       {stocks.length > 0 && (
         <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold">📊 퀀텀 종목 추천 리스트</h3>
+            <h3 className="text-lg font-semibold">📊 퀀트 종목 추천 리스트</h3>
             <div className="text-sm text-blue-400 bg-blue-900/20 px-3 py-1 rounded-full border border-blue-700">
               {filteredStocks.length > 0 ? (
                 <>표시 중: {filteredStocks.length}개 / 전체: {stocks.length}개</>
@@ -939,7 +947,20 @@ export default function QuantumRecommendation() {
                 <label className="block text-sm text-gray-400 mb-2">주문 타입</label>
                 <select
                   value={buySettings.orderType}
-                  onChange={(e) => setBuySettings(prev => ({ ...prev, orderType: e.target.value as 'market' | 'limit' }))}
+                  onChange={(e) => {
+                    const newOrderType = e.target.value as 'market' | 'limit';
+                    const newPrice = newOrderType === 'market' ? calculateDiscountedPrice(selectedStock.종가) : selectedStock.종가;
+                    const sellPrice = Math.round(newPrice * (1 + buySettings.sellProfitPercent / 100));
+                    const stopLossPrice = Math.round(newPrice * (1 - buySettings.stopLossPercent / 100));
+
+                    setBuySettings(prev => ({
+                      ...prev,
+                      orderType: newOrderType,
+                      price: newPrice,
+                      sellPrice: sellPrice,
+                      stopLossPrice: stopLossPrice
+                    }));
+                  }}
                   className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white"
                 >
                   <option value="market">시장가</option>
@@ -997,7 +1018,7 @@ export default function QuantumRecommendation() {
                         value={buySettings.sellProfitPercent}
                         onChange={(e) => {
                           const percent = parseFloat(e.target.value) || 1;
-                          const buyPrice = buySettings.orderType === 'market' ? selectedStock.종가 : buySettings.price;
+                          const buyPrice = buySettings.orderType === 'market' ? calculateDiscountedPrice(selectedStock.종가) : buySettings.price;
                           const sellPrice = Math.round(buyPrice * (1 + percent / 100));
                           setBuySettings(prev => ({
                             ...prev,
@@ -1048,7 +1069,7 @@ export default function QuantumRecommendation() {
                         value={buySettings.stopLossPercent}
                         onChange={(e) => {
                           const percent = parseFloat(e.target.value) || 3;
-                          const buyPrice = buySettings.orderType === 'market' ? selectedStock.종가 : buySettings.price;
+                          const buyPrice = buySettings.orderType === 'market' ? calculateDiscountedPrice(selectedStock.종가) : buySettings.price;
                           const stopLossPrice = Math.round(buyPrice * (1 - percent / 100));
                           setBuySettings(prev => ({
                             ...prev,
@@ -1078,7 +1099,7 @@ export default function QuantumRecommendation() {
               <div className="bg-gray-700 rounded p-3">
                 <div className="text-sm text-gray-400">예상 주문 금액</div>
                 <div className="text-lg font-bold">
-                  ₩{((buySettings.orderType === 'market' ? selectedStock.종가 : buySettings.price) * buySettings.quantity).toLocaleString()}
+                  ₩{((buySettings.orderType === 'market' ? calculateDiscountedPrice(selectedStock.종가) : buySettings.price) * buySettings.quantity).toLocaleString()}
                 </div>
               </div>
             </div>
