@@ -1,4 +1,5 @@
 import { createClient } from '@/utils/supabase/server';
+import { getKoreanDate } from '@/utils/timezone';
 
 export interface KISConfig {
   appKey: string;
@@ -71,7 +72,7 @@ export async function getStoredKISToken(userId: string): Promise<string | null> 
       .from('kis_tokens')
       .select('access_token, expires_at')
       .eq('user_id', userId)
-      .gt('expires_at', new Date().toISOString()) // 만료되지 않은 토큰만
+      .gt('expires_at', getKoreanDate().toISOString()) // 만료되지 않은 토큰만 (한국 시간 기준)
       .single();
 
     if (error || !data) {
@@ -92,8 +93,9 @@ export async function saveKISToken(userId: string, accessToken: string, expiresI
   try {
     const supabase = await createClient();
 
-    const expiresAt = new Date();
-    expiresAt.setSeconds(expiresAt.getSeconds() + expiresInSeconds);
+    // 한국 시간 기준으로 토큰 만료 시간 계산
+    const koreanNow = getKoreanDate();
+    const expiresAt = new Date(koreanNow.getTime() + (expiresInSeconds * 1000));
 
     const { error } = await supabase
       .from('kis_tokens')
@@ -101,7 +103,7 @@ export async function saveKISToken(userId: string, accessToken: string, expiresI
         user_id: userId,
         access_token: accessToken,
         expires_at: expiresAt.toISOString(),
-        updated_at: new Date().toISOString()
+        updated_at: koreanNow.toISOString()
       }, {
         onConflict: 'user_id'
       });

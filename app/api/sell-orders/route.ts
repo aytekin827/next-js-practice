@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { getKISConfig, getKISAccessToken, createKISHeaders } from '@/utils/kis-config';
+import { getKoreanDateString } from '@/utils/timezone';
 
 export async function GET() {
   try {
     const supabase = await createClient();
-    
+
     // 사용자 인증 확인
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
@@ -32,10 +33,8 @@ export async function GET() {
     const headers = createKISHeaders(kisConfig, accessToken);
     headers['tr_id'] = 'TTTC8001R'; // 주식 당일 주문 체결 조회 TR_ID
 
-    const today = new Date();
-    const dateStr = today.getFullYear().toString() + 
-                   (today.getMonth() + 1).toString().padStart(2, '0') + 
-                   today.getDate().toString().padStart(2, '0');
+    // 한국 시간 기준으로 오늘 날짜 생성 (배포 환경 시간대와 무관)
+    const dateStr = getKoreanDateString();
 
     const queryParams = new URLSearchParams({
       'CANO': kisConfig.accountNumber,
@@ -88,7 +87,7 @@ export async function GET() {
         // 주문상태 매핑
         let status: 'pending' | 'partial' | 'completed' | 'cancelled' = 'pending';
         const orderStatus = item.ord_dvsn_name || '';
-        
+
         if (orderStatus.includes('취소')) {
           status = 'cancelled';
         } else if (orderStatus.includes('체결')) {
