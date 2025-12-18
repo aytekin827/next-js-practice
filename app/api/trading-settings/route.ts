@@ -17,6 +17,8 @@ export interface TradingSettings {
   // 손절가 활성화 설정
   defaultStopLossEnabled: boolean;
   quantumDefaultStopLossEnabled: boolean;
+  // 매도 관련 설정
+  sellProfitPercent: number;
 }
 
 // 기본 설정값
@@ -35,7 +37,9 @@ const DEFAULT_SETTINGS: TradingSettings = {
   quantumMaxAmountPerStock: 50000,
   // 손절가 활성화 기본값
   defaultStopLossEnabled: true,
-  quantumDefaultStopLossEnabled: true
+  quantumDefaultStopLossEnabled: true,
+  // 매도 관련 기본값
+  sellProfitPercent: 3.0
 };
 
 // 설정 조회
@@ -82,7 +86,9 @@ export async function GET(request: NextRequest) {
       quantumMaxAmountPerStock: data.quantum_max_amount_per_stock || DEFAULT_SETTINGS.quantumMaxAmountPerStock,
       // 손절가 활성화 설정
       defaultStopLossEnabled: data.default_stop_loss_enabled !== undefined ? data.default_stop_loss_enabled : DEFAULT_SETTINGS.defaultStopLossEnabled,
-      quantumDefaultStopLossEnabled: data.quantum_default_stop_loss_enabled !== undefined ? data.quantum_default_stop_loss_enabled : DEFAULT_SETTINGS.quantumDefaultStopLossEnabled
+      quantumDefaultStopLossEnabled: data.quantum_default_stop_loss_enabled !== undefined ? data.quantum_default_stop_loss_enabled : DEFAULT_SETTINGS.quantumDefaultStopLossEnabled,
+      // 매도 관련 설정
+      sellProfitPercent: parseFloat(data.sell_profit_percent) || DEFAULT_SETTINGS.sellProfitPercent
     };
 
     return NextResponse.json(settings);
@@ -134,6 +140,8 @@ export async function POST(request: NextRequest) {
       // 손절가 활성화 설정
       default_stop_loss_enabled: settings.defaultStopLossEnabled,
       quantum_default_stop_loss_enabled: settings.quantumDefaultStopLossEnabled,
+      // 매도 관련 설정
+      sell_profit_percent: settings.sellProfitPercent,
       updated_at: new Date().toISOString()
     };
 

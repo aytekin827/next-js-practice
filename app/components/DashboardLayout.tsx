@@ -11,8 +11,8 @@ interface User {
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
-  currentPage: 'dashboard' | 'analysis' | 'quantum-recommendation' | 'settings';
-  onPageChange: (page: 'dashboard' | 'analysis' | 'quantum-recommendation' | 'settings') => void;
+  currentPage: 'dashboard' | 'analysis' | 'quantum-recommendation' | 'stock-sell' | 'settings';
+  onPageChange: (page: 'dashboard' | 'analysis' | 'quantum-recommendation' | 'stock-sell' | 'settings') => void;
 }
 
 export default function DashboardLayout({ children, currentPage, onPageChange }: DashboardLayoutProps) {
@@ -86,6 +86,12 @@ export default function DashboardLayout({ children, currentPage, onPageChange }:
       name: '퀀트종목추천',
       icon: '🚀',
       description: 'CSV 파일 업로드를 통한 퀀트 종목 추천 및 매수'
+    },
+    {
+      id: 'stock-sell' as const,
+      name: '주식매도',
+      icon: '💰',
+      description: '보유 종목 매도 및 매도 주문 관리'
     },
     {
       id: 'settings' as const,

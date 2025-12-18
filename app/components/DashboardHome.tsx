@@ -21,12 +21,19 @@ interface Holding {
   returnRate: number;
 }
 
-interface LogEntry {
+interface TradeHistory {
   id: string;
+  symbol: string;
+  name: string;
+  type: 'buy' | 'sell';
+  quantity: number;
+  price: number;
+  totalAmount: number;
   timestamp: string;
-  message: string;
-  type: 'info' | 'success' | 'warning' | 'error';
+  status: 'completed' | 'pending' | 'cancelled';
 }
+
+
 
 // 설정 상수들
 const REFRESH_INTERVALS = {
@@ -43,7 +50,7 @@ export default function DashboardHome() {
     totalReturn: 0
   });
   const [holdings, setHoldings] = useState<Holding[]>([]);
-  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [tradeHistory, setTradeHistory] = useState<TradeHistory[]>([]);
   const [dataLoading, setDataLoading] = useState(false);
   const [refreshInterval, setRefreshInterval] = useState<number>(REFRESH_INTERVALS.API_DATA);
 
@@ -97,61 +104,33 @@ export default function DashboardHome() {
     }
   };
 
-
-
-  const sellStock = async (holdingId: string) => {
+  const loadTradeHistory = async () => {
     try {
-      const holding = holdings.find(h => h.id === holdingId);
-      if (!holding) return;
-
-      const response = await fetch('/api/sell', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          holdingId: holdingId,
-          symbol: holding.symbol,
-          quantity: holding.quantity
-        }),
-      });
-
+      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD 형식
+      const response = await fetch(`/api/trades?date=${today}`);
       const data = await response.json();
 
-      if (data.success) {
-        const newLog: LogEntry = {
-          id: Date.now().toString(),
-          timestamp: new Date().toLocaleTimeString(),
-          message: `${holding.name}(${holding.symbol}) ${holding.quantity}주 시장가 매도 주문 전송 완료`,
-          type: 'success'
-        };
-        setLogs(prev => [newLog, ...prev.slice(0, 49)]);
-        loadHoldings();
+      if (Array.isArray(data)) {
+        setTradeHistory(data);
       } else {
-        const newLog: LogEntry = {
-          id: Date.now().toString(),
-          timestamp: new Date().toLocaleTimeString(),
-          message: `매도 주문 실패: ${data.error}`,
-          type: 'error'
-        };
-        setLogs(prev => [newLog, ...prev.slice(0, 49)]);
+        console.error('거래 내역 데이터 오류:', data.error);
+        setTradeHistory([]);
       }
     } catch (error) {
-      console.error('매도 실패:', error);
-      const newLog: LogEntry = {
-        id: Date.now().toString(),
-        timestamp: new Date().toLocaleTimeString(),
-        message: '매도 주문 중 오류가 발생했습니다',
-        type: 'error'
-      };
-      setLogs(prev => [newLog, ...prev.slice(0, 49)]);
+      console.error('거래 내역 데이터 로딩 실패:', error);
+      setTradeHistory([]);
     }
   };
+
+
+
+
 
   // 초기 데이터 로딩
   useEffect(() => {
     loadAssetData();
     loadHoldings();
+    loadTradeHistory();
   }, []);
 
   // 주기적 데이터 업데이트
@@ -161,6 +140,7 @@ export default function DashboardHome() {
     const dataInterval = setInterval(() => {
       loadAssetData();
       loadHoldings();
+      loadTradeHistory();
     }, refreshInterval);
 
     return () => clearInterval(dataInterval);
@@ -188,6 +168,7 @@ export default function DashboardHome() {
               onClick={() => {
                 loadAssetData();
                 loadHoldings();
+                loadTradeHistory();
               }}
               className="bg-blue-600 hover:bg-blue-700 text-xs px-2 py-1 rounded transition-colors"
               title="수동 새로고침"
@@ -255,7 +236,7 @@ export default function DashboardHome() {
         {/* 보유 종목 */}
         <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
           <h2 className="text-lg font-semibold mb-4">📊 보유 종목</h2>
-          <div className="space-y-3">
+          <div className="space-y-3 max-h-96 overflow-y-auto">
             {holdings.length === 0 ? (
               <div className="text-center text-gray-400 py-8">
                 보유 종목이 없습니다
@@ -263,17 +244,9 @@ export default function DashboardHome() {
             ) : (
               holdings.map((holding) => (
                 <div key={holding.id} className="bg-gray-700 rounded p-4">
-                  <div className="flex justify-between items-start mb-2">
-                    <div>
-                      <div className="font-semibold">{holding.name}</div>
-                      <div className="text-sm text-gray-400">({holding.symbol})</div>
-                    </div>
-                    <button
-                      onClick={() => sellStock(holding.id)}
-                      className="bg-red-600 hover:bg-red-700 text-xs px-2 py-1 rounded"
-                    >
-                      매도
-                    </button>
+                  <div className="mb-2">
+                    <div className="font-semibold">{holding.name}</div>
+                    <div className="text-sm text-gray-400">({holding.symbol})</div>
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-sm">
                     <div>수량: {holding.quantity}주</div>
@@ -289,21 +262,61 @@ export default function DashboardHome() {
           </div>
         </div>
 
-        {/* 실시간 로그 */}
-        <div className="bg-black rounded-lg p-4 border border-gray-700">
-          <h2 className="text-lg font-semibold mb-4 text-green-400">💻 실시간 로그</h2>
-          <div className="h-80 overflow-y-auto font-mono text-sm space-y-1">
-            {logs.length === 0 ? (
-              <div className="text-green-400">[시스템 대기 중...]</div>
+        {/* 오늘의 거래 내역 */}
+        <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold">📝 오늘의 거래 내역</h2>
+            <span className="text-xs text-gray-400">
+              {new Date().toLocaleDateString('ko-KR')}
+            </span>
+          </div>
+          <div className="space-y-3 max-h-96 overflow-y-auto">
+            {tradeHistory.length === 0 ? (
+              <div className="text-center text-gray-400 py-8">
+                오늘 거래 내역이 없습니다
+              </div>
             ) : (
-              logs.map((log) => (
-                <div key={log.id} className={`${
-                  log.type === 'success' ? 'text-green-400' :
-                  log.type === 'warning' ? 'text-yellow-400' :
-                  log.type === 'error' ? 'text-red-400' :
-                  'text-green-400'
+              tradeHistory.map((trade) => (
+                <div key={trade.id} className={`rounded p-4 ${
+                  trade.type === 'buy' ? 'bg-red-900/20 border border-red-900/50' : 'bg-blue-900/20 border border-blue-900/50'
                 }`}>
-                  [{log.timestamp}] {log.message}
+                  <div className="flex items-start justify-between mb-2">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xs font-semibold px-2 py-1 rounded ${
+                          trade.type === 'buy' ? 'bg-red-600 text-white' : 'bg-blue-600 text-white'
+                        }`}>
+                          {trade.type === 'buy' ? '매수' : '매도'}
+                        </span>
+                        <span className="font-semibold">{trade.name}</span>
+                      </div>
+                      <div className="text-sm text-gray-400 mt-1">({trade.symbol})</div>
+                    </div>
+                    <div className="text-xs text-gray-400">
+                      {new Date(trade.timestamp).toLocaleTimeString('ko-KR', {
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div>수량: {trade.quantity}주</div>
+                    <div>체결가: ₩{trade.price.toLocaleString()}</div>
+                    <div className="col-span-2 font-semibold">
+                      총액: ₩{trade.totalAmount.toLocaleString()}
+                    </div>
+                  </div>
+                  <div className="mt-2">
+                    <span className={`text-xs px-2 py-1 rounded ${
+                      trade.status === 'completed' ? 'bg-green-900/50 text-green-400' :
+                      trade.status === 'pending' ? 'bg-yellow-900/50 text-yellow-400' :
+                      'bg-gray-700 text-gray-400'
+                    }`}>
+                      {trade.status === 'completed' ? '✓ 체결완료' :
+                       trade.status === 'pending' ? '⏳ 대기중' :
+                       '✕ 취소됨'}
+                    </span>
+                  </div>
                 </div>
               ))
             )}

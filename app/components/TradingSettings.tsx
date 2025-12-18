@@ -18,6 +18,8 @@ interface TradingSettings {
   // 손절가 활성화 설정
   defaultStopLossEnabled: boolean;
   quantumDefaultStopLossEnabled: boolean;
+  // 매도 관련 설정
+  sellProfitPercent: number;
 }
 
 export default function TradingSettings() {
@@ -36,7 +38,9 @@ export default function TradingSettings() {
     quantumMaxAmountPerStock: 50000,
     // 손절가 활성화 기본값
     defaultStopLossEnabled: true,
-    quantumDefaultStopLossEnabled: true
+    quantumDefaultStopLossEnabled: true,
+    // 매도 관련 기본값
+    sellProfitPercent: 3.0
   });
 
   const [loading, setLoading] = useState(true);
@@ -115,7 +119,9 @@ export default function TradingSettings() {
       quantumMaxAmountPerStock: 50000,
       // 손절가 활성화 기본값
       defaultStopLossEnabled: true,
-      quantumDefaultStopLossEnabled: true
+      quantumDefaultStopLossEnabled: true,
+      // 매도 관련 기본값
+      sellProfitPercent: 3.0
     });
     setMessage(null);
   };
@@ -504,6 +510,40 @@ export default function TradingSettings() {
         )}
       </div>
 
+      {/* 매도 설정 */}
+      <div className="bg-gray-800 rounded-lg border border-gray-700">
+        <div className="p-6">
+          <div className="flex items-center gap-3 mb-6">
+            <span className="text-2xl">💰</span>
+            <div>
+              <h2 className="text-lg font-semibold">매도 설정</h2>
+              <p className="text-sm text-gray-400">주식매도 페이지에서 사용되는 기본 설정값</p>
+            </div>
+          </div>
+
+          <div className="bg-gray-700/50 rounded-lg p-4">
+            <h3 className="text-md font-semibold mb-4 text-gray-200">💸 매도가격 설정</h3>
+            <div>
+              <label className="block text-sm text-gray-400 mb-2">기본 매도 수익률 (%)</label>
+              <input
+                type="number"
+                value={settings.sellProfitPercent}
+                onChange={(e) => setSettings(prev => ({
+                  ...prev,
+                  sellProfitPercent: parseFloat(e.target.value) || 0
+                }))}
+                step="0.1"
+                min="0"
+                max="50"
+                className="w-full bg-gray-600 border border-gray-500 rounded px-3 py-2 text-white"
+              />
+              <div className="text-xs text-gray-500 mt-1">
+                매도 시 매수가 대비 기본 수익률 (매도가격 = 매수가 × (1 + 수익률/100))
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
     </div>
   );
