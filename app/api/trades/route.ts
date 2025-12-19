@@ -130,18 +130,6 @@ export async function GET(request: NextRequest) {
           status = 'partial';
         }
 
-        // 디버깅 로그 추가
-        console.log('거래 데이터 매핑:', {
-          symbol: item.pdno,
-          sll_buy_dvsn_cd: item.sll_buy_dvsn_cd,
-          isBuy: isBuy,
-          tot_ccld_qty: item.tot_ccld_qty,
-          avg_prvs: item.avg_prvs,
-          ccld_unpr: item.ccld_unpr,
-          tot_ccld_amt: item.tot_ccld_amt,
-          calculatedAmount: totalCcldQty * ccldUnpr
-        });
-
         return {
           id: `${item.odno}_${item.ord_tmd}`, // 주문번호 + 시간으로 고유 ID 생성
           symbol: item.pdno || '', // 종목코드
