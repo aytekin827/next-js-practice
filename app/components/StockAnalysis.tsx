@@ -158,7 +158,6 @@ export default function StockAnalysis() {
 
   // 종목 필터링 로직
   const filterStocks = (stocks: StockData[]): FilteredStock[] => {
-    console.log(stocks)
     return stocks.map(stock => {
       // 시가 갭 계산 (시가가 전일 종가 대비 상승 퍼센트)
       const gapPercent = stock.prevClose > 0
@@ -188,7 +187,6 @@ export default function StockAnalysis() {
     try {
       // 새로운 데이터를 API에서 가져오기
       const freshStocks = await fetchTopStocks();
-      console.log(freshStocks)
       if (freshStocks.length > 0) {
         setTopStocks(freshStocks);
         const filtered = filterStocks(freshStocks);
@@ -244,7 +242,6 @@ export default function StockAnalysis() {
 
       // 1. 등락률 상위 종목 조회 (한 번만)
       const stocks = await fetchTopStocks();
-      console.log(stocks)
       setInitialLoading(false);
 
 

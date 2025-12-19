@@ -22,8 +22,6 @@ export async function GET(request: NextRequest) {
       requestedDate.replace(/-/g, '') : // YYYY-MM-DD -> YYYYMMDD
       getKoreanDateString(); // 오늘 날짜
 
-    console.log('거래 내역 조회 날짜:', dateStr);
-
     // KIS 설정 가져오기
     const kisConfig = await getKISConfig(user.id);
     if (!kisConfig) {
@@ -81,7 +79,6 @@ export async function GET(request: NextRequest) {
     }
 
     const data = await response.json();
-    console.log('KIS 거래 내역 API 응답:', JSON.stringify(data, null, 2));
 
     // KIS API 응답 확인
     if (data.rt_cd !== '0') {
@@ -91,29 +88,11 @@ export async function GET(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // 체결된 거래 데이터 파싱
-    console.log('거래 내역 원본 데이터 개수:', data.output1?.length || 0);
-
-    // 첫 번째 항목의 모든 필드 출력 (디버깅용)
-    if (data.output1 && data.output1.length > 0) {
-      console.log('첫 번째 거래 항목 전체 필드:', data.output1[0]);
-    }
-
     const trades = (data.output1 || [])
       .filter((item: Record<string, string>) => {
         // 체결된 거래만 필터링 (체결수량이 0보다 큰 경우)
         const ccldQty = parseInt(item.tot_ccld_qty || '0');
-        console.log('거래 항목 필터링:', {
-          symbol: item.pdno,
-          name: item.prdt_name,
-          ccldQty: ccldQty,
-          ordQty: item.ord_qty,
-          sllBuyDvsn: item.sll_buy_dvsn_cd,
-          avgPrvs: item.avg_prvs,
-          ccldUnpr: item.ccld_unpr,
-          totCcldAmt: item.tot_ccld_amt,
-          allFields: Object.keys(item).slice(0, 10) // 처음 10개 필드명 출력
-        });
+
         return ccldQty > 0;
       })
       .map((item: Record<string, string>) => {
@@ -156,12 +135,6 @@ export async function GET(request: NextRequest) {
         return b.timestamp.localeCompare(a.timestamp);
       });
 
-    console.log('필터링된 거래 내역 개수:', trades.length);
-
-    // 디버깅을 위해 빈 배열인 경우 샘플 데이터 반환 (실제 운영에서는 제거)
-    if (trades.length === 0) {
-      console.log('거래 내역이 없어 빈 배열 반환');
-    }
 
     return NextResponse.json(trades);
   } catch (error) {

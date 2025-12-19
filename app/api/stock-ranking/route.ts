@@ -129,8 +129,6 @@ export async function GET(request: NextRequest) {
           const prevClose = parseInt(output1?.stck_prdy_clpr || '0');
           const lowPrice = parseInt(output1?.stck_lwpr || '0');
 
-          // console.log(output1)
-
           topStocks.push({
             ...stock,
             currentPrice,
@@ -173,8 +171,6 @@ export async function GET(request: NextRequest) {
         });
       }
     }
-
-    // console.log(topStocks)
 
     return NextResponse.json(topStocks);
   } catch (error) {
