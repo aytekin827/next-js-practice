@@ -81,13 +81,26 @@ export async function GET() {
       }, { status: 400 });
     }
 
+    // 주문 타입 정의
+    interface PendingOrder {
+      id: string;
+      symbol: string;
+      name: string;
+      quantity: number;
+      sellPrice: number;
+      orderTime: string;
+      status: 'pending' | 'partial' | 'completed' | 'cancelled';
+      executedQuantity: number;
+      remainingQuantity: number;
+    }
+
     // 오늘의 매도 주문 데이터 파싱
     const pendingOrders = (data.output1 || [])
       .filter((item: Record<string, string>) => {
         // 매도 주문만 필터링
         return item.sll_buy_dvsn_cd === '01';
       })
-      .map((item: Record<string, string>) => {
+      .map((item: Record<string, string>): PendingOrder => {
         const orderedQty = parseInt(item.ord_qty || '0');
         const executedQty = parseInt(item.tot_ccld_qty || '0');
         const remainingQty = orderedQty - executedQty;
@@ -119,7 +132,7 @@ export async function GET() {
           remainingQuantity: remainingQty // 잔여수량
         };
       })
-      .filter(order => {
+      .filter((order: PendingOrder) => {
         // 미체결 또는 부분체결 상태인 주문만 반환
         return order.status === 'pending' || order.status === 'partial';
       });
