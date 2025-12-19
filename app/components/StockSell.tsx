@@ -11,6 +11,8 @@ interface HoldingStock {
   totalValue: number;
   profitLoss: number;
   profitLossPercent: number;
+  originalQuantity?: number; // 원래 보유 수량
+  pendingQuantity?: number; // 매도 대기 수량
 }
 
 interface PendingSellOrder {
@@ -52,6 +54,81 @@ export default function StockSell() {
   const [editingOrder, setEditingOrder] = useState<PendingSellOrder | null>(null);
   const [sellProfitPercent, setSellProfitPercent] = useState(3.0);
 
+  // 보유종목 테이블 정렬 상태
+  type HoldingSortField = 'name' | 'symbol' | 'quantity' | 'avgPrice' | 'currentPrice' | 'totalValue' | 'profitLoss' | 'profitLossPercent';
+  type OrderSortField = 'name' | 'symbol' | 'quantity' | 'sellPrice' | 'orderTime' | 'status';
+  type SortDirection = 'asc' | 'desc';
+
+  const [holdingSortField, setHoldingSortField] = useState<HoldingSortField>('name');
+  const [holdingSortDirection, setHoldingSortDirection] = useState<SortDirection>('asc');
+  const [orderSortField, setOrderSortField] = useState<OrderSortField>('orderTime');
+  const [orderSortDirection, setOrderSortDirection] = useState<SortDirection>('desc');
+
+  // 보유종목 정렬 함수
+  const handleHoldingSort = (field: HoldingSortField) => {
+    if (holdingSortField === field) {
+      setHoldingSortDirection(holdingSortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setHoldingSortField(field);
+      setHoldingSortDirection('asc');
+    }
+  };
+
+  // 주문 정렬 함수
+  const handleOrderSort = (field: OrderSortField) => {
+    if (orderSortField === field) {
+      setOrderSortDirection(orderSortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setOrderSortField(field);
+      setOrderSortDirection('asc');
+    }
+  };
+
+  // 정렬된 보유종목 데이터
+  const sortedHoldings = [...holdings].sort((a, b) => {
+    let aValue: string | number = a[holdingSortField];
+    let bValue: string | number = b[holdingSortField];
+
+    if (typeof aValue === 'string' && typeof bValue === 'string') {
+      aValue = aValue.toLowerCase();
+      bValue = bValue.toLowerCase();
+    }
+
+    if (aValue < bValue) return holdingSortDirection === 'asc' ? -1 : 1;
+    if (aValue > bValue) return holdingSortDirection === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  // 정렬된 주문 데이터
+  const sortedOrders = [...pendingOrders].sort((a, b) => {
+    let aValue: string | number = a[orderSortField];
+    let bValue: string | number = b[orderSortField];
+
+    if (typeof aValue === 'string' && typeof bValue === 'string') {
+      aValue = aValue.toLowerCase();
+      bValue = bValue.toLowerCase();
+    }
+
+    if (aValue < bValue) return orderSortDirection === 'asc' ? -1 : 1;
+    if (aValue > bValue) return orderSortDirection === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  // 정렬 아이콘 컴포넌트
+  const HoldingSortIcon = ({ field }: { field: HoldingSortField }) => {
+    if (holdingSortField !== field) {
+      return <span className="text-gray-500">↕️</span>;
+    }
+    return holdingSortDirection === 'asc' ? <span className="text-blue-400">↑</span> : <span className="text-blue-400">↓</span>;
+  };
+
+  const OrderSortIcon = ({ field }: { field: OrderSortField }) => {
+    if (orderSortField !== field) {
+      return <span className="text-gray-500">↕️</span>;
+    }
+    return orderSortDirection === 'asc' ? <span className="text-blue-400">↑</span> : <span className="text-blue-400">↓</span>;
+  };
+
   // 예상 수익 계산
   const calculateExpectedProfit = () => {
     return holdings.reduce((total, stock) => {
@@ -67,6 +144,31 @@ export default function StockSell() {
     return (calculateExpectedProfit() / totalInvestment) * 100;
   };
 
+  // 시간 포맷팅 함수
+  const formatOrderTime = (orderTime: string) => {
+    if (!orderTime || orderTime.length < 15) return 'N/A';
+
+    try {
+      // "YYYYMMDD HHMMSS" 형식을 파싱
+      const datePart = orderTime.slice(0, 8); // YYYYMMDD
+      const timePart = orderTime.slice(9, 15); // HHMMSS
+
+      if (datePart.length === 8 && timePart.length >= 6) {
+
+        const month = datePart.slice(4, 6);
+        const day = datePart.slice(6, 8);
+        const hour = timePart.slice(0, 2);
+        const minute = timePart.slice(2, 4);
+
+        return `${month}/${day} ${hour}:${minute}`;
+      }
+    } catch (error) {
+      console.error('시간 파싱 오류:', error);
+    }
+
+    return 'N/A';
+  };
+
   // 데이터 로드
   useEffect(() => {
     loadData();
@@ -74,19 +176,48 @@ export default function StockSell() {
 
   const loadData = async () => {
     try {
-      // 보유 종목 로드
-      const holdingsResponse = await fetch('/api/holdings');
+      // 보유 종목과 매도 대기 주문을 동시에 로드
+      const [holdingsResponse, ordersResponse] = await Promise.all([
+        fetch('/api/holdings'),
+        fetch('/api/sell-orders')
+      ]);
+
+      let holdingsData: HoldingStock[] = [];
+      let ordersData: PendingSellOrder[] = [];
+
       if (holdingsResponse.ok) {
-        const holdingsData = await holdingsResponse.json();
-        setHoldings(holdingsData);
+        holdingsData = await holdingsResponse.json();
       }
 
-      // 매도 대기 주문 로드
-      const ordersResponse = await fetch('/api/sell-orders');
       if (ordersResponse.ok) {
-        const ordersData = await ordersResponse.json();
-        setPendingOrders(ordersData);
+        ordersData = await ordersResponse.json();
       }
+
+      // 매도 대기 중인 수량을 종목별로 계산
+      const pendingQuantityBySymbol = ordersData.reduce((acc, order) => {
+        if (order.status === 'pending' || order.status === 'partial') {
+          acc[order.symbol] = (acc[order.symbol] || 0) + order.quantity;
+        }
+        return acc;
+      }, {} as Record<string, number>);
+
+      // 실제 매도 가능한 종목만 필터링 (보유수량 - 매도대기수량 > 0)
+      const sellableHoldings = holdingsData
+        .map(stock => {
+          const pendingQuantity = pendingQuantityBySymbol[stock.symbol] || 0;
+          const availableQuantity = stock.quantity - pendingQuantity;
+
+          return {
+            ...stock,
+            quantity: availableQuantity, // 실제 매도 가능한 수량으로 업데이트
+            originalQuantity: stock.quantity, // 원래 보유 수량 보관
+            pendingQuantity: pendingQuantity // 매도 대기 수량 보관
+          };
+        })
+        .filter(stock => stock.quantity > 0); // 매도 가능한 수량이 0보다 큰 종목만
+
+      setHoldings(sellableHoldings);
+      setPendingOrders(ordersData);
 
       // 트레이딩 설정 로드
       const settingsResponse = await fetch('/api/trading-settings');
@@ -169,7 +300,7 @@ export default function StockSell() {
     if (!bulkSellModalData) return;
 
     const selectedStocks = bulkSellModalData.stocks.filter(item => item.selected);
-    
+
     try {
       const response = await fetch('/api/sell/bulk', {
         method: 'POST',
@@ -277,21 +408,21 @@ export default function StockSell() {
           <h1 className="text-2xl font-bold">💰 주식매도</h1>
           <p className="text-gray-400 mt-1">보유 종목 매도 및 매도 주문 관리</p>
         </div>
-        
+
         {/* 예상 수익 정보 */}
         <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
           <div className="text-sm text-gray-400 mb-1">전체 매도 시 예상 수익</div>
           <div className="flex items-center gap-4">
             <div className={`text-lg font-bold ${
-              calculateExpectedProfit() > 0 ? 'text-red-400' : 
-              calculateExpectedProfit() < 0 ? 'text-blue-400' : 
+              calculateExpectedProfit() > 0 ? 'text-red-400' :
+              calculateExpectedProfit() < 0 ? 'text-blue-400' :
               'text-white'
             }`}>
               {calculateExpectedProfit() >= 0 ? '+' : ''}{calculateExpectedProfit().toLocaleString()}원
             </div>
             <div className={`text-sm ${
-              calculateExpectedProfitPercent() > 0 ? 'text-red-400' : 
-              calculateExpectedProfitPercent() < 0 ? 'text-blue-400' : 
+              calculateExpectedProfitPercent() > 0 ? 'text-red-400' :
+              calculateExpectedProfitPercent() < 0 ? 'text-blue-400' :
               'text-white'
             }`}>
               ({calculateExpectedProfitPercent() >= 0 ? '+' : ''}{calculateExpectedProfitPercent().toFixed(2)}%)
@@ -300,11 +431,11 @@ export default function StockSell() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* 좌측: 매도 가능한 종목 리스트 */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold">📋 보유 종목</h2>
+      <div className="space-y-6">
+        {/* 보유 종목 테이블 */}
+        <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold">📋 매도 가능 종목</h2>
             <button
               onClick={openBulkSellModal}
               disabled={holdings.length === 0}
@@ -314,127 +445,272 @@ export default function StockSell() {
             </button>
           </div>
 
-          <div className="space-y-3">
+          <div className="overflow-x-auto">
             {holdings.length === 0 ? (
-              <div className="bg-gray-800 rounded-lg p-6 text-center border border-gray-700">
-                <div className="text-gray-400">보유 중인 종목이 없습니다</div>
+              <div className="text-center text-gray-400 py-8">
+                매도 가능한 종목이 없습니다
               </div>
             ) : (
-              holdings.map((stock) => (
-                <div key={stock.symbol} className="bg-gray-800 rounded-lg p-4 border border-gray-700">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="font-semibold">{stock.name}</span>
-                        <span className="text-sm text-gray-400">({stock.symbol})</span>
-                      </div>
-                      
-                      <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div>
-                          <div className="text-gray-400">보유수량</div>
-                          <div className="font-medium">{stock.quantity.toLocaleString()}주</div>
-                        </div>
-                        <div>
-                          <div className="text-gray-400">평균단가</div>
-                          <div className="font-medium">{stock.avgPrice.toLocaleString()}원</div>
-                        </div>
-                        <div>
-                          <div className="text-gray-400">현재가</div>
-                          <div className="font-medium">{stock.currentPrice.toLocaleString()}원</div>
-                        </div>
-                        <div>
-                          <div className="text-gray-400">평가손익</div>
-                          <div className={`font-medium ${
-                            stock.profitLoss > 0 ? 'text-red-400' : 
-                            stock.profitLoss < 0 ? 'text-blue-400' : 
-                            'text-white'
-                          }`}>
-                            {stock.profitLoss >= 0 ? '+' : ''}{stock.profitLoss.toLocaleString()}원
-                            <span className="text-xs ml-1">
-                              ({stock.profitLossPercent >= 0 ? '+' : ''}{stock.profitLossPercent.toFixed(2)}%)
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <button
-                      onClick={() => openSellModal(stock)}
-                      className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors ml-4"
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-600">
+                    <th
+                      className="text-left py-3 px-2 cursor-pointer hover:bg-gray-700 transition-colors"
+                      onClick={() => handleHoldingSort('name')}
                     >
+                      <div className="flex items-center gap-1">
+                        종목명 <HoldingSortIcon field="name" />
+                      </div>
+                    </th>
+                    <th
+                      className="text-left py-3 px-2 cursor-pointer hover:bg-gray-700 transition-colors"
+                      onClick={() => handleHoldingSort('symbol')}
+                    >
+                      <div className="flex items-center gap-1">
+                        코드 <HoldingSortIcon field="symbol" />
+                      </div>
+                    </th>
+                    <th
+                      className="text-right py-3 px-2 cursor-pointer hover:bg-gray-700 transition-colors"
+                      onClick={() => handleHoldingSort('quantity')}
+                    >
+                      <div className="flex items-center justify-end gap-1">
+                        매도가능수량 <HoldingSortIcon field="quantity" />
+                      </div>
+                    </th>
+                    <th
+                      className="text-right py-3 px-2 cursor-pointer hover:bg-gray-700 transition-colors"
+                      onClick={() => handleHoldingSort('avgPrice')}
+                    >
+                      <div className="flex items-center justify-end gap-1">
+                        평균단가 <HoldingSortIcon field="avgPrice" />
+                      </div>
+                    </th>
+                    <th
+                      className="text-right py-3 px-2 cursor-pointer hover:bg-gray-700 transition-colors"
+                      onClick={() => handleHoldingSort('currentPrice')}
+                    >
+                      <div className="flex items-center justify-end gap-1">
+                        현재가 <HoldingSortIcon field="currentPrice" />
+                      </div>
+                    </th>
+                    <th
+                      className="text-right py-3 px-2 cursor-pointer hover:bg-gray-700 transition-colors"
+                      onClick={() => handleHoldingSort('totalValue')}
+                    >
+                      <div className="flex items-center justify-end gap-1">
+                        평가금액 <HoldingSortIcon field="totalValue" />
+                      </div>
+                    </th>
+                    <th
+                      className="text-right py-3 px-2 cursor-pointer hover:bg-gray-700 transition-colors"
+                      onClick={() => handleHoldingSort('profitLoss')}
+                    >
+                      <div className="flex items-center justify-end gap-1">
+                        평가손익 <HoldingSortIcon field="profitLoss" />
+                      </div>
+                    </th>
+                    <th
+                      className="text-right py-3 px-2 cursor-pointer hover:bg-gray-700 transition-colors"
+                      onClick={() => handleHoldingSort('profitLossPercent')}
+                    >
+                      <div className="flex items-center justify-end gap-1">
+                        수익률 <HoldingSortIcon field="profitLossPercent" />
+                      </div>
+                    </th>
+                    <th className="text-center py-3 px-2">
                       매도
-                    </button>
-                  </div>
-                </div>
-              ))
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedHoldings.map((stock, index) => (
+                    <tr
+                      key={`${stock.symbol}-${index}`}
+                      className="border-b border-gray-700 hover:bg-gray-700/50 transition-colors"
+                    >
+                      <td className="py-3 px-2">
+                        <div className="font-semibold">{stock.name}</div>
+                      </td>
+                      <td className="py-3 px-2 text-gray-400">
+                        {stock.symbol}
+                      </td>
+                      <td className="py-3 px-2 text-right">
+                        <div className="font-semibold text-green-400">
+                          {stock.quantity.toLocaleString()}주
+                        </div>
+                        {stock.pendingQuantity && stock.pendingQuantity > 0 && (
+                          <div className="text-xs text-gray-500">
+                            (전체: {stock.originalQuantity?.toLocaleString()}주, 대기: {stock.pendingQuantity.toLocaleString()}주)
+                          </div>
+                        )}
+                      </td>
+                      <td className="py-3 px-2 text-right">
+                        ₩{Math.round(stock.avgPrice).toLocaleString()}
+                      </td>
+                      <td className="py-3 px-2 text-right font-semibold">
+                        ₩{stock.currentPrice.toLocaleString()}
+                      </td>
+                      <td className="py-3 px-2 text-right font-semibold">
+                        ₩{stock.totalValue.toLocaleString()}
+                      </td>
+                      <td className={`py-3 px-2 text-right font-semibold ${
+                        stock.profitLoss > 0 ? 'text-red-400' :
+                        stock.profitLoss < 0 ? 'text-blue-400' :
+                        'text-white'
+                      }`}>
+                        {stock.profitLoss > 0 ? '+' : ''}₩{stock.profitLoss.toLocaleString()}
+                      </td>
+                      <td className={`py-3 px-2 text-right font-semibold ${
+                        stock.profitLossPercent > 0 ? 'text-red-400' :
+                        stock.profitLossPercent < 0 ? 'text-blue-400' :
+                        'text-white'
+                      }`}>
+                        {stock.profitLossPercent > 0 ? '+' : ''}{stock.profitLossPercent.toFixed(2)}%
+                      </td>
+                      <td className="py-3 px-2 text-center">
+                        <button
+                          onClick={() => openSellModal(stock)}
+                          className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-xs transition-colors"
+                        >
+                          매도
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             )}
           </div>
         </div>
 
-        {/* 우측: 매도 대기중인 종목들 */}
-        <div className="space-y-4">
-          <h2 className="text-lg font-semibold">⏳ 매도 대기 주문</h2>
-          
-          <div className="space-y-3">
+        {/* 매도 대기 주문 테이블 */}
+        <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+          <h2 className="text-lg font-semibold mb-4">⏳ 매도 대기 주문</h2>
+
+          <div className="overflow-x-auto">
             {pendingOrders.length === 0 ? (
-              <div className="bg-gray-800 rounded-lg p-6 text-center border border-gray-700">
-                <div className="text-gray-400">매도 대기 중인 주문이 없습니다</div>
+              <div className="text-center text-gray-400 py-8">
+                매도 대기 중인 주문이 없습니다
               </div>
             ) : (
-              pendingOrders.map((order) => (
-                <div key={order.id} className="bg-gray-800 rounded-lg p-4 border border-gray-700">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="font-semibold">{order.name}</span>
-                        <span className="text-sm text-gray-400">({order.symbol})</span>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-600">
+                    <th
+                      className="text-left py-3 px-2 cursor-pointer hover:bg-gray-700 transition-colors"
+                      onClick={() => handleOrderSort('name')}
+                    >
+                      <div className="flex items-center gap-1">
+                        종목명 <OrderSortIcon field="name" />
+                      </div>
+                    </th>
+                    <th
+                      className="text-left py-3 px-2 cursor-pointer hover:bg-gray-700 transition-colors"
+                      onClick={() => handleOrderSort('symbol')}
+                    >
+                      <div className="flex items-center gap-1">
+                        코드 <OrderSortIcon field="symbol" />
+                      </div>
+                    </th>
+                    <th
+                      className="text-right py-3 px-2 cursor-pointer hover:bg-gray-700 transition-colors"
+                      onClick={() => handleOrderSort('quantity')}
+                    >
+                      <div className="flex items-center justify-end gap-1">
+                        매도수량 <OrderSortIcon field="quantity" />
+                      </div>
+                    </th>
+                    <th
+                      className="text-right py-3 px-2 cursor-pointer hover:bg-gray-700 transition-colors"
+                      onClick={() => handleOrderSort('sellPrice')}
+                    >
+                      <div className="flex items-center justify-end gap-1">
+                        매도가격 <OrderSortIcon field="sellPrice" />
+                      </div>
+                    </th>
+                    <th
+                      className="text-center py-3 px-2 cursor-pointer hover:bg-gray-700 transition-colors"
+                      onClick={() => handleOrderSort('status')}
+                    >
+                      <div className="flex items-center justify-center gap-1">
+                        상태 <OrderSortIcon field="status" />
+                      </div>
+                    </th>
+                    <th
+                      className="text-center py-3 px-2 cursor-pointer hover:bg-gray-700 transition-colors"
+                      onClick={() => handleOrderSort('orderTime')}
+                    >
+                      <div className="flex items-center justify-center gap-1">
+                        주문시간 <OrderSortIcon field="orderTime" />
+                      </div>
+                    </th>
+                    <th className="text-center py-3 px-2">
+                      관리
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedOrders.map((order) => (
+                    <tr
+                      key={order.id}
+                      className="border-b border-gray-700 hover:bg-gray-700/50 transition-colors"
+                    >
+                      <td className="py-3 px-2">
+                        <div className="font-semibold">{order.name}</div>
+                      </td>
+                      <td className="py-3 px-2 text-gray-400">
+                        {order.symbol}
+                      </td>
+                      <td className="py-3 px-2 text-right">
+                        {order.quantity.toLocaleString()}주
+                      </td>
+                      <td className="py-3 px-2 text-right font-semibold">
+                        ₩{order.sellPrice.toLocaleString()}
+                      </td>
+                      <td className="py-3 px-2 text-center">
                         <span className={`text-xs px-2 py-1 rounded ${
-                          order.status === 'pending' ? 'bg-yellow-900/30 text-yellow-400' :
-                          order.status === 'partial' ? 'bg-blue-900/30 text-blue-400' :
-                          order.status === 'completed' ? 'bg-green-900/30 text-green-400' :
-                          'bg-red-900/30 text-red-400'
+                          order.status === 'pending' ? 'bg-yellow-900/50 text-yellow-400' :
+                          order.status === 'partial' ? 'bg-blue-900/50 text-blue-400' :
+                          order.status === 'completed' ? 'bg-green-900/50 text-green-400' :
+                          'bg-red-900/50 text-red-400'
                         }`}>
                           {order.status === 'pending' ? '대기중' :
                            order.status === 'partial' ? '부분체결' :
                            order.status === 'completed' ? '완료' : '취소됨'}
                         </span>
-                      </div>
-                      
-                      <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div>
-                          <div className="text-gray-400">매도수량</div>
-                          <div className="font-medium">{order.quantity.toLocaleString()}주</div>
-                        </div>
-                        <div>
-                          <div className="text-gray-400">매도가격</div>
-                          <div className="font-medium">{order.sellPrice.toLocaleString()}원</div>
-                        </div>
-                        <div className="col-span-2">
-                          <div className="text-gray-400">주문시간</div>
-                          <div className="font-medium text-xs">{order.orderTime}</div>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {order.status === 'pending' && (
-                      <div className="flex gap-2 ml-4">
-                        <button
-                          onClick={() => openEditOrderModal(order)}
-                          className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg transition-colors text-sm"
-                        >
-                          수정
-                        </button>
-                        <button
-                          onClick={() => cancelOrder(order.id)}
-                          className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg transition-colors text-sm"
-                        >
-                          취소
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))
+                      </td>
+                      <td className="py-3 px-2 text-center text-xs">
+                        {formatOrderTime(order.orderTime)}
+                      </td>
+                      <td className="py-3 px-2 text-center">
+                        {(order.status === 'pending' || order.status === 'partial') && (
+                          <div className="flex gap-1 justify-center">
+                            <button
+                              onClick={() => openEditOrderModal(order)}
+                              className="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-xs transition-colors"
+                            >
+                              수정
+                            </button>
+                            <button
+                              onClick={() => cancelOrder(order.id)}
+                              className="bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-xs transition-colors"
+                            >
+                              취소
+                            </button>
+                          </div>
+                        )}
+                        {order.status === 'completed' && (
+                          <span className="text-xs text-gray-500">완료됨</span>
+                        )}
+                        {order.status === 'cancelled' && (
+                          <span className="text-xs text-gray-500">취소됨</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             )}
           </div>
         </div>
@@ -445,14 +721,19 @@ export default function StockSell() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md border border-gray-700">
             <h3 className="text-lg font-semibold mb-4">매도 주문</h3>
-            
+
             <div className="space-y-4">
               <div className="bg-gray-700/50 rounded-lg p-4">
                 <div className="text-sm text-gray-400 mb-2">종목 정보</div>
                 <div className="font-semibold">{sellModalData.stock.name} ({sellModalData.stock.symbol})</div>
                 <div className="text-sm text-gray-400 mt-1">
-                  보유수량: {sellModalData.stock.quantity.toLocaleString()}주 | 
+                  매도가능수량: {sellModalData.stock.quantity.toLocaleString()}주 |
                   평균단가: {sellModalData.stock.avgPrice.toLocaleString()}원
+                  {sellModalData.stock.pendingQuantity && sellModalData.stock.pendingQuantity > 0 && (
+                    <div className="text-xs text-yellow-400 mt-1">
+                      (전체보유: {sellModalData.stock.originalQuantity?.toLocaleString()}주, 매도대기: {sellModalData.stock.pendingQuantity.toLocaleString()}주)
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -538,7 +819,7 @@ export default function StockSell() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-gray-800 rounded-lg p-6 w-full max-w-4xl max-h-[80vh] overflow-y-auto border border-gray-700">
             <h3 className="text-lg font-semibold mb-4">일괄 매도 주문</h3>
-            
+
             <div className="space-y-4">
               {bulkSellModalData.stocks.map((item, index) => (
                 <div key={item.stock.symbol} className="bg-gray-700/50 rounded-lg p-4">
@@ -548,7 +829,7 @@ export default function StockSell() {
                       checked={item.selected}
                       onChange={(e) => setBulkSellModalData(prev => prev ? {
                         ...prev,
-                        stocks: prev.stocks.map((stock, i) => 
+                        stocks: prev.stocks.map((stock, i) =>
                           i === index ? { ...stock, selected: e.target.checked } : stock
                         )
                       } : null)}
@@ -557,12 +838,17 @@ export default function StockSell() {
                     <div className="flex-1">
                       <div className="font-semibold">{item.stock.name} ({item.stock.symbol})</div>
                       <div className="text-sm text-gray-400">
-                        보유: {item.stock.quantity.toLocaleString()}주 | 
+                        매도가능: {item.stock.quantity.toLocaleString()}주 |
                         평균단가: {item.stock.avgPrice.toLocaleString()}원
+                        {item.stock.pendingQuantity && item.stock.pendingQuantity > 0 && (
+                          <div className="text-xs text-yellow-400">
+                            (전체보유: {item.stock.originalQuantity?.toLocaleString()}주, 매도대기: {item.stock.pendingQuantity.toLocaleString()}주)
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
-                  
+
                   {item.selected && (
                     <div className="space-y-3">
                       <div>
@@ -571,7 +857,7 @@ export default function StockSell() {
                           value={item.orderType}
                           onChange={(e) => setBulkSellModalData(prev => prev ? {
                             ...prev,
-                            stocks: prev.stocks.map((stock, i) => 
+                            stocks: prev.stocks.map((stock, i) =>
                               i === index ? { ...stock, orderType: e.target.value as 'limit' | 'market' } : stock
                             )
                           } : null)}
@@ -581,7 +867,7 @@ export default function StockSell() {
                           <option value="market">시장가</option>
                         </select>
                       </div>
-                      
+
                       <div className="grid grid-cols-2 gap-4">
                         {item.orderType === 'limit' && (
                           <div>
@@ -591,7 +877,7 @@ export default function StockSell() {
                               value={item.sellPrice}
                               onChange={(e) => setBulkSellModalData(prev => prev ? {
                                 ...prev,
-                                stocks: prev.stocks.map((stock, i) => 
+                                stocks: prev.stocks.map((stock, i) =>
                                   i === index ? { ...stock, sellPrice: parseInt(e.target.value) || 0 } : stock
                                 )
                               } : null)}
@@ -606,7 +892,7 @@ export default function StockSell() {
                             value={item.sellQuantity}
                             onChange={(e) => setBulkSellModalData(prev => prev ? {
                               ...prev,
-                              stocks: prev.stocks.map((stock, i) => 
+                              stocks: prev.stocks.map((stock, i) =>
                                 i === index ? { ...stock, sellQuantity: parseInt(e.target.value) || 0 } : stock
                               )
                             } : null)}
@@ -647,7 +933,7 @@ export default function StockSell() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md border border-gray-700">
             <h3 className="text-lg font-semibold mb-4">매도 주문 수정</h3>
-            
+
             <div className="space-y-4">
               <div className="bg-gray-700/50 rounded-lg p-4">
                 <div className="text-sm text-gray-400 mb-2">종목 정보</div>

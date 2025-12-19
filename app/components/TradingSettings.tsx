@@ -40,7 +40,7 @@ export default function TradingSettings() {
     defaultStopLossEnabled: true,
     quantumDefaultStopLossEnabled: true,
     // 매도 관련 기본값
-    sellProfitPercent: 3.0
+    sellProfitPercent: 2.0
   });
 
   const [loading, setLoading] = useState(true);

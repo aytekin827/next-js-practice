@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
     });
 
     const balanceResponse = await fetch(
-      `${kisConfig.baseUrl}	/uapi/domestic-stock/v1/trading/inquire-balance-rlz-pl?${queryParams}`,
+      `${kisConfig.baseUrl}/uapi/domestic-stock/v1/trading/inquire-balance-rlz-pl?${queryParams}`,
       {
         method: 'GET',
         headers: {
