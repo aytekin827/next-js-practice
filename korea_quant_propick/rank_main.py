@@ -303,8 +303,8 @@ def run_all_strategies(df: pd.DataFrame, as_of: str, timestamp: str):
         outfile = os.path.join(RESULT_DIR, f"{prefix}_{timestamp}.csv")
 
         # 자동화에 사용할 경로
-        outfile = Path(rf'C:\Users\ok\Desktop\BlogAlmighty\data\stock_propick\{datetime.today().strftime("%Y%m%d")}\{prefix}.csv')
-        outfile.parent.mkdir(parents=True, exist_ok=True)
+        # outfile = Path(rf'C:\Users\ok\Desktop\BlogAlmighty\data\stock_propick\{datetime.today().strftime("%Y%m%d")}\{prefix}.csv')
+        # outfile.parent.mkdir(parents=True, exist_ok=True)
 
         if choice == "14":
             df_to_save = df_ranked.head(50).copy()
