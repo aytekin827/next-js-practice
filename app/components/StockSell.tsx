@@ -23,6 +23,8 @@ interface PendingSellOrder {
   sellPrice: number;
   orderTime: string;
   status: 'pending' | 'partial' | 'completed' | 'cancelled';
+  executedQuantity?: number; // 체결된 수량
+  remainingQuantity?: number; // 잔여 수량
 }
 
 interface SellModalData {
@@ -129,17 +131,20 @@ export default function StockSell() {
     return orderSortDirection === 'asc' ? <span className="text-blue-400">↑</span> : <span className="text-blue-400">↓</span>;
   };
 
-  // 예상 수익 계산
+  // 예상 수익 계산 (매도 가능한 종목만)
   const calculateExpectedProfit = () => {
-    return holdings.reduce((total, stock) => {
-      const sellPrice = Math.round(stock.avgPrice * (1 + sellProfitPercent / 100) / 10) * 10;
-      const profit = (sellPrice - stock.avgPrice) * stock.quantity;
-      return total + profit;
-    }, 0);
+    return holdings
+      .filter(stock => stock.quantity > 0) // 매도 가능한 종목만
+      .reduce((total, stock) => {
+        const sellPrice = Math.round(stock.avgPrice * (1 + sellProfitPercent / 100) / 10) * 10;
+        const profit = (sellPrice - stock.avgPrice) * stock.quantity;
+        return total + profit;
+      }, 0);
   };
 
   const calculateExpectedProfitPercent = () => {
-    const totalInvestment = holdings.reduce((total, stock) => total + (stock.avgPrice * stock.quantity), 0);
+    const sellableHoldings = holdings.filter(stock => stock.quantity > 0);
+    const totalInvestment = sellableHoldings.reduce((total, stock) => total + (stock.avgPrice * stock.quantity), 0);
     if (totalInvestment === 0) return 0;
     return (calculateExpectedProfit() / totalInvestment) * 100;
   };
@@ -187,21 +192,34 @@ export default function StockSell() {
 
       if (holdingsResponse.ok) {
         holdingsData = await holdingsResponse.json();
+      } else {
+        console.error('보유 종목 조회 실패:', await holdingsResponse.text());
       }
 
       if (ordersResponse.ok) {
         ordersData = await ordersResponse.json();
+      } else {
+        console.error('매도 주문 조회 실패:', await ordersResponse.text());
       }
 
-      // 매도 대기 중인 수량을 종목별로 계산
-      const pendingQuantityBySymbol = ordersData.reduce((acc, order) => {
-        if (order.status === 'pending' || order.status === 'partial') {
-          acc[order.symbol] = (acc[order.symbol] || 0) + order.quantity;
+      // 오늘 날짜의 매도 대기 주문만 필터링 (pending, partial 상태)
+      const todayPendingOrders = ordersData.filter(order => {
+        const isToday = order.orderTime.startsWith(new Date().toISOString().split('T')[0].replace(/-/g, ''));
+        const isPending = order.status === 'pending' || order.status === 'partial';
+        return isToday && isPending;
+      });
+
+      // 종목별 매도 대기 수량 계산 (미체결 + 부분체결의 잔여수량)
+      const pendingQuantityBySymbol = todayPendingOrders.reduce((acc, order) => {
+        // 실제 미체결 수량 = 주문수량 - 체결수량
+        const remainingQty = order.quantity - (order.executedQuantity || 0);
+        if (remainingQty > 0) {
+          acc[order.symbol] = (acc[order.symbol] || 0) + remainingQty;
         }
         return acc;
       }, {} as Record<string, number>);
 
-      // 실제 매도 가능한 종목만 필터링 (보유수량 - 매도대기수량 > 0)
+      // 매도 가능한 종목 계산
       const sellableHoldings = holdingsData
         .map(stock => {
           const pendingQuantity = pendingQuantityBySymbol[stock.symbol] || 0;
@@ -209,15 +227,15 @@ export default function StockSell() {
 
           return {
             ...stock,
-            quantity: availableQuantity, // 실제 매도 가능한 수량으로 업데이트
+            quantity: Math.max(0, availableQuantity), // 매도 가능한 수량 (음수 방지)
             originalQuantity: stock.quantity, // 원래 보유 수량 보관
             pendingQuantity: pendingQuantity // 매도 대기 수량 보관
           };
         })
-        .filter(stock => stock.quantity > 0); // 매도 가능한 수량이 0보다 큰 종목만
+        .filter(stock => stock.originalQuantity > 0); // 실제 보유 종목만 표시
 
       setHoldings(sellableHoldings);
-      setPendingOrders(ordersData);
+      setPendingOrders(todayPendingOrders); // 오늘의 매도 대기 주문만 설정
 
       // 트레이딩 설정 로드
       const settingsResponse = await fetch('/api/trading-settings');
@@ -246,13 +264,15 @@ export default function StockSell() {
 
   // 일괄 매도 모달 열기
   const openBulkSellModal = () => {
-    const stocksData = holdings.map(stock => ({
-      stock,
-      selected: true,
-      sellPrice: Math.round(stock.avgPrice * (1 + sellProfitPercent / 100) / 10) * 10,
-      sellQuantity: stock.quantity,
-      orderType: 'limit' as const
-    }));
+    const stocksData = holdings
+      .filter(stock => stock.quantity > 0) // 매도 가능한 종목만
+      .map(stock => ({
+        stock,
+        selected: true,
+        sellPrice: Math.round(stock.avgPrice * (1 + sellProfitPercent / 100) / 10) * 10,
+        sellQuantity: stock.quantity,
+        orderType: 'limit' as const
+      }));
     setBulkSellModalData({ stocks: stocksData });
     setBulkSellModalOpen(true);
   };
@@ -411,7 +431,12 @@ export default function StockSell() {
 
         {/* 예상 수익 정보 */}
         <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
-          <div className="text-sm text-gray-400 mb-1">전체 매도 시 예상 수익</div>
+          <div className="text-sm text-gray-400 mb-1">
+            매도 가능 종목 전체 매도 시 예상 수익
+            <span className="text-xs ml-2">
+              ({holdings.filter(h => h.quantity > 0).length}종목)
+            </span>
+          </div>
           <div className="flex items-center gap-4">
             <div className={`text-lg font-bold ${
               calculateExpectedProfit() > 0 ? 'text-red-400' :
@@ -435,20 +460,25 @@ export default function StockSell() {
         {/* 보유 종목 테이블 */}
         <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold">📋 매도 가능 종목</h2>
+            <div>
+              <h2 className="text-lg font-semibold">📋 매도 가능 종목</h2>
+              <p className="text-sm text-gray-400 mt-1">
+                보유 중인 종목에서 매도 주문이 걸려있지 않은 수량만 표시됩니다
+              </p>
+            </div>
             <button
               onClick={openBulkSellModal}
-              disabled={holdings.length === 0}
+              disabled={holdings.filter(h => h.quantity > 0).length === 0}
               className="bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg transition-colors"
             >
-              일괄 매도
+              일괄 매도 ({holdings.filter(h => h.quantity > 0).length}종목)
             </button>
           </div>
 
           <div className="overflow-x-auto">
             {holdings.length === 0 ? (
               <div className="text-center text-gray-400 py-8">
-                매도 가능한 종목이 없습니다
+                보유 중인 종목이 없습니다
               </div>
             ) : (
               <table className="w-full text-sm">
@@ -524,26 +554,34 @@ export default function StockSell() {
                   </tr>
                 </thead>
                 <tbody>
-                  {sortedHoldings.map((stock, index) => (
+                  {sortedHoldings.map((stock, index) => {
+                    const canSell = stock.quantity > 0;
+                    return (
                     <tr
                       key={`${stock.symbol}-${index}`}
-                      className="border-b border-gray-700 hover:bg-gray-700/50 transition-colors"
+                      className={`border-b border-gray-700 hover:bg-gray-700/50 transition-colors ${
+                        !canSell ? 'opacity-60' : ''
+                      }`}
                     >
                       <td className="py-3 px-2">
                         <div className="font-semibold">{stock.name}</div>
+                        {!canSell && (
+                          <div className="text-xs text-yellow-400">매도 주문 대기 중</div>
+                        )}
                       </td>
                       <td className="py-3 px-2 text-gray-400">
                         {stock.symbol}
                       </td>
                       <td className="py-3 px-2 text-right">
-                        <div className="font-semibold text-green-400">
+                        <div className={`font-semibold ${canSell ? 'text-green-400' : 'text-gray-500'}`}>
                           {stock.quantity.toLocaleString()}주
                         </div>
-                        {stock.pendingQuantity && stock.pendingQuantity > 0 && (
-                          <div className="text-xs text-gray-500">
-                            (전체: {stock.originalQuantity?.toLocaleString()}주, 대기: {stock.pendingQuantity.toLocaleString()}주)
-                          </div>
-                        )}
+                        <div className="text-xs text-gray-500">
+                          전체보유: {stock.originalQuantity?.toLocaleString()}주
+                          {stock.pendingQuantity && stock.pendingQuantity > 0 && (
+                            <span className="text-yellow-400"> | 매도대기: {stock.pendingQuantity.toLocaleString()}주</span>
+                          )}
+                        </div>
                       </td>
                       <td className="py-3 px-2 text-right">
                         ₩{Math.round(stock.avgPrice).toLocaleString()}
@@ -571,13 +609,15 @@ export default function StockSell() {
                       <td className="py-3 px-2 text-center">
                         <button
                           onClick={() => openSellModal(stock)}
-                          className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-xs transition-colors"
+                          disabled={!canSell}
+                          className="bg-red-600 hover:bg-red-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-3 py-1 rounded text-xs transition-colors"
                         >
-                          매도
+                          {canSell ? '매도' : '대기중'}
                         </button>
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             )}
@@ -586,7 +626,12 @@ export default function StockSell() {
 
         {/* 매도 대기 주문 테이블 */}
         <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-          <h2 className="text-lg font-semibold mb-4">⏳ 매도 대기 주문</h2>
+          <div className="mb-4">
+            <h2 className="text-lg font-semibold">⏳ 매도 대기 주문</h2>
+            <p className="text-sm text-gray-400 mt-1">
+              오늘 매도 주문을 넣었지만 아직 체결되지 않은 주문들입니다
+            </p>
+          </div>
 
           <div className="overflow-x-auto">
             {pendingOrders.length === 0 ? (
@@ -618,7 +663,7 @@ export default function StockSell() {
                       onClick={() => handleOrderSort('quantity')}
                     >
                       <div className="flex items-center justify-end gap-1">
-                        매도수량 <OrderSortIcon field="quantity" />
+                        주문수량 <OrderSortIcon field="quantity" />
                       </div>
                     </th>
                     <th
@@ -663,7 +708,15 @@ export default function StockSell() {
                         {order.symbol}
                       </td>
                       <td className="py-3 px-2 text-right">
-                        {order.quantity.toLocaleString()}주
+                        <div className="font-semibold">
+                          {order.quantity.toLocaleString()}주
+                        </div>
+                        {order.executedQuantity && order.executedQuantity > 0 && (
+                          <div className="text-xs text-gray-500">
+                            체결: {order.executedQuantity.toLocaleString()}주 |
+                            잔여: {(order.quantity - order.executedQuantity).toLocaleString()}주
+                          </div>
+                        )}
                       </td>
                       <td className="py-3 px-2 text-right font-semibold">
                         ₩{order.sellPrice.toLocaleString()}
@@ -727,11 +780,17 @@ export default function StockSell() {
                 <div className="text-sm text-gray-400 mb-2">종목 정보</div>
                 <div className="font-semibold">{sellModalData.stock.name} ({sellModalData.stock.symbol})</div>
                 <div className="text-sm text-gray-400 mt-1">
-                  매도가능수량: {sellModalData.stock.quantity.toLocaleString()}주 |
-                  평균단가: {sellModalData.stock.avgPrice.toLocaleString()}원
+                  <div className="flex items-center gap-2">
+                    <span className="text-green-400 font-semibold">
+                      매도가능: {sellModalData.stock.quantity.toLocaleString()}주
+                    </span>
+                    <span>|</span>
+                    <span>평균단가: ₩{Math.round(sellModalData.stock.avgPrice).toLocaleString()}</span>
+                  </div>
                   {sellModalData.stock.pendingQuantity && sellModalData.stock.pendingQuantity > 0 && (
-                    <div className="text-xs text-yellow-400 mt-1">
-                      (전체보유: {sellModalData.stock.originalQuantity?.toLocaleString()}주, 매도대기: {sellModalData.stock.pendingQuantity.toLocaleString()}주)
+                    <div className="text-xs text-yellow-400 mt-2 p-2 bg-yellow-900/20 rounded">
+                      ℹ️ 전체보유: {sellModalData.stock.originalQuantity?.toLocaleString()}주
+                      (매도대기: {sellModalData.stock.pendingQuantity.toLocaleString()}주)
                     </div>
                   )}
                 </div>
@@ -779,17 +838,30 @@ export default function StockSell() {
               </div>
 
               <div>
-                <label className="block text-sm text-gray-400 mb-2">매도수량 (주)</label>
+                <label className="block text-sm text-gray-400 mb-2">
+                  매도수량 (주)
+                  <span className="text-xs text-gray-500 ml-2">
+                    최대: {sellModalData.stock.quantity.toLocaleString()}주
+                  </span>
+                </label>
                 <input
                   type="number"
                   value={sellModalData.sellQuantity}
-                  onChange={(e) => setSellModalData(prev => prev ? {
-                    ...prev,
-                    sellQuantity: parseInt(e.target.value) || 0
-                  } : null)}
+                  onChange={(e) => {
+                    const value = parseInt(e.target.value) || 0;
+                    const maxQuantity = sellModalData.stock.quantity;
+                    setSellModalData(prev => prev ? {
+                      ...prev,
+                      sellQuantity: Math.min(value, maxQuantity)
+                    } : null);
+                  }}
+                  min="1"
                   max={sellModalData.stock.quantity}
                   className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white"
                 />
+                <div className="text-xs text-gray-500 mt-1">
+                  예상 매도금액: ₩{(sellModalData.sellPrice * sellModalData.sellQuantity).toLocaleString()}
+                </div>
               </div>
 
               <div className="flex gap-3 pt-4">

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 interface QuantStock {
   종목명: string;
@@ -27,6 +27,10 @@ interface QuantStock {
   시총구간: string;
   리스크구간: string;
   스타일: string;
+  // 추가 메타데이터
+  strategy_number?: string;
+  strategy_name?: string;
+  ref_date?: string;
 }
 
 interface FilterSettings {
@@ -50,32 +54,41 @@ interface FilterSettings {
   };
 }
 
+interface Strategy {
+  strategy_number: string;
+  strategy_name: string;
+}
+
 export default function QuantRecommendation() {
   const [stocks, setStocks] = useState<QuantStock[]>([]);
   const [filteredStocks, setFilteredStocks] = useState<QuantStock[]>([]);
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadMessage, setUploadMessage] = useState('');
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadMessage, setLoadMessage] = useState('');
 
-  // 필터링 설정
+  // 전략 관련 상태
+  const [strategies, setStrategies] = useState<Strategy[]>([]);
+  const [selectedStrategy, setSelectedStrategy] = useState<string>('');
+  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
+
+  // 필터링 설정 - 모든 종목이 표시되도록 넓은 범위로 설정
   const [filters, setFilters] = useState<FilterSettings>({
     market: 'ALL',
     minTotalScore: 0,
-    maxTotalScore: 100,
+    maxTotalScore: 1000,  // 더 큰 값으로 설정
     minValueScore: 0,
     minQualityScore: 0,
     minMomentumScore: 0,
-    maxRiskScore: 100,
+    maxRiskScore: 1000,   // 더 큰 값으로 설정
     marketCapCategory: 'ALL',
     style: 'ALL',
     minPER: 0,
-    maxPER: 100,
+    maxPER: 10000,        // 더 큰 값으로 설정
     minDividend: 0,
-    minMom12m: -100,
-    maxMom12m: 100,
+    minMom12m: -1000,     // 더 작은 값으로 설정
+    maxMom12m: 1000,      // 더 큰 값으로 설정
     priceRange: {
       min: 0,
-      max: 1000000
+      max: 10000000       // 더 큰 값으로 설정 (1천만원)
     }
   });
 
@@ -123,24 +136,107 @@ export default function QuantRecommendation() {
     setFilters({
       market: 'ALL',
       minTotalScore: 0,
-      maxTotalScore: 100,
+      maxTotalScore: 1000,  // 더 큰 값으로 설정
       minValueScore: 0,
       minQualityScore: 0,
       minMomentumScore: 0,
-      maxRiskScore: 100,
+      maxRiskScore: 1000,   // 더 큰 값으로 설정
       marketCapCategory: 'ALL',
       style: 'ALL',
       minPER: 0,
-      maxPER: 100,
+      maxPER: 10000,        // 더 큰 값으로 설정
       minDividend: 0,
-      minMom12m: -100,
-      maxMom12m: 100,
+      minMom12m: -1000,     // 더 작은 값으로 설정
+      maxMom12m: 1000,      // 더 큰 값으로 설정
       priceRange: {
         min: 0,
-        max: 1000000
+        max: 10000000       // 더 큰 값으로 설정 (1천만원)
       }
     });
   };
+
+  // 전략 목록 로드
+  const loadStrategies = async (date?: string) => {
+    try {
+      const response = await fetch('/api/stock-rankings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'getStrategies',
+          date: date || selectedDate
+        })
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        setStrategies(data.strategies);
+        // 전략이 선택되지 않았고 전략 목록이 있으면 첫 번째 전략을 자동 선택
+        if (!selectedStrategy && data.strategies.length > 0) {
+          setSelectedStrategy(data.strategies[0].strategy_number);
+        }
+      } else {
+        console.error('전략 목록 로드 실패:', data.error);
+      }
+    } catch (error) {
+      console.error('전략 목록 로드 실패:', error);
+    }
+  };
+
+  // 종목 데이터 로드
+  const loadStockData = async (strategy?: string, date?: string) => {
+    setIsLoading(true);
+    setLoadMessage('');
+
+    try {
+      const params = new URLSearchParams();
+      if (strategy) {
+        params.append('strategy', strategy);
+      }
+      if (date) {
+        params.append('date', date);
+      }
+
+      const response = await fetch(`/api/stock-rankings?${params}`);
+      const data = await response.json();
+
+      if (data.success) {
+        setStocks(data.data);
+        setLoadMessage(`✅ ${data.count}개 종목 데이터를 불러왔습니다 (${data.date})`);
+
+        // 데이터 로드 시 필터 자동 조정 제거 - 모든 종목이 표시되도록 함
+        // 사용자가 수동으로 필터를 조정할 수 있도록 기본값 유지
+      } else {
+        setLoadMessage(`❌ ${data.error}`);
+        setStocks([]);
+      }
+    } catch (error) {
+      console.error('데이터 로드 실패:', error);
+      setLoadMessage('❌ 데이터 로드 중 오류가 발생했습니다.');
+      setStocks([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // 컴포넌트 마운트 시 초기 데이터 로드
+  useEffect(() => {
+    const initializeData = async () => {
+      await loadStrategies();
+      // 초기 로드 시에는 1번 전략 로드
+      await loadStockData('1', selectedDate);
+    };
+    initializeData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // 전략이나 날짜 변경 시 데이터 다시 로드
+  useEffect(() => {
+    if (selectedDate) {
+      // 전략이 선택되지 않았으면 1번 전략 로드
+      const strategyToLoad = selectedStrategy || '1';
+      loadStockData(strategyToLoad, selectedDate);
+    }
+  }, [selectedStrategy, selectedDate]);
 
   // 필터링 적용 (stocks나 filters가 변경될 때마다)
   useEffect(() => {
@@ -181,57 +277,7 @@ export default function QuantRecommendation() {
     };
   }>({});
 
-  // CSV 파일 업로드
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
 
-    setIsUploading(true);
-    setUploadMessage('');
-
-    try {
-      const formData = new FormData();
-      formData.append('csvFile', file);
-
-      const response = await fetch('/api/quant-upload', {
-        method: 'POST',
-        body: formData,
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        setStocks(data.data);
-        setUploadMessage(`✅ ${data.message}`);
-        // 필터 범위를 데이터에 맞게 자동 조정
-        const prices = data.data.map((s: QuantStock) => s.종가);
-        const totalScores = data.data.map((s: QuantStock) => s.total_score);
-        const pers = data.data.map((s: QuantStock) => s.PER).filter((p: number) => p > 0);
-
-        setFilters(prev => ({
-          ...prev,
-          priceRange: {
-            min: Math.min(...prices),
-            max: Math.max(...prices)
-          },
-          minTotalScore: Math.min(...totalScores),
-          maxTotalScore: Math.max(...totalScores),
-          maxPER: pers.length > 0 ? Math.max(...pers) : 100
-        }));
-      } else {
-        setUploadMessage(`❌ ${data.error}`);
-      }
-    } catch (error) {
-      console.error('파일 업로드 실패:', error);
-      setUploadMessage('❌ 파일 업로드 중 오류가 발생했습니다.');
-    } finally {
-      setIsUploading(false);
-      // 파일 입력 초기화
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-    }
-  };
 
   // 1% 할인된 가격을 10원 단위로 반올림하는 함수
   const calculateDiscountedPrice = (price: number) => {
@@ -375,7 +421,7 @@ export default function QuantRecommendation() {
 
   // 일괄매수 실행
   const executeBulkBuy = async () => {
-    const selectedStocks = Object.entries(bulkBuySettings).filter(([_, settings]) => settings.selected);
+    const selectedStocks = Object.entries(bulkBuySettings).filter(([, settings]) => settings.selected);
 
     if (selectedStocks.length === 0) {
       alert('매수할 종목을 선택해주세요.');
@@ -434,6 +480,7 @@ export default function QuantRecommendation() {
           results.push(`❌ ${stock.종목명}: ${data.error}`);
         }
       } catch (error) {
+        console.error('매수 주문 실패:', error);
         failCount++;
         results.push(`❌ ${stock.종목명}: 주문 실패`);
       }
@@ -449,46 +496,86 @@ export default function QuantRecommendation() {
 
   return (
     <div className="p-6 space-y-6">
-      {/* 파일 업로드 섹션 */}
+      {/* 전략 선택 섹션 */}
       <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-        <h2 className="text-xl font-semibold mb-4">🚀 퀀트종목추천 CSV 업로드</h2>
+        <h2 className="text-xl font-semibold mb-4">🚀 퀀트종목추천 전략 선택</h2>
 
         <div className="space-y-4">
-          <div>
-            <label className="block text-sm text-gray-400 mb-2">
-              CSV 파일 선택 (종목명, 종목코드, 종가, 시가총액, 거래량, 거래대금, 상장주식수, 시장, BPS, PER, PBR, EPS, DIV, DPS, mom_3m, mom_12m, value_score, quality_score, momentum_score, risk_score, total_score, 시총구간, 리스크구간, 스타일)
-            </label>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".csv"
-              onChange={handleFileUpload}
-              disabled={isUploading}
-              className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700 disabled:opacity-50"
-            />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* 날짜 선택 */}
+            <div>
+              <label className="block text-sm text-gray-400 mb-2">분석 날짜</label>
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => {
+                  setSelectedDate(e.target.value);
+                  loadStrategies(e.target.value);
+                }}
+                className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white"
+              />
+            </div>
+
+            {/* 전략 선택 */}
+            <div>
+              <label className="block text-sm text-gray-400 mb-2">투자 전략</label>
+              <select
+                value={selectedStrategy}
+                onChange={(e) => setSelectedStrategy(e.target.value)}
+                disabled={isLoading}
+                className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white disabled:opacity-50"
+              >
+                {strategies.map((strategy) => (
+                  <option key={strategy.strategy_number} value={strategy.strategy_number}>
+                    {strategy.strategy_name} ({strategy.strategy_number})
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
-          {isUploading && (
-            <div className="flex items-center gap-2 text-blue-400">
-              <div className="animate-spin w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full"></div>
-              <span>파일을 업로드하고 있습니다...</span>
-            </div>
-          )}
+          {/* 새로고침 버튼 */}
+          <div className="flex items-center justify-between">
+            <button
+              onClick={async () => {
+                await loadStrategies(selectedDate);
+                const strategyToLoad = selectedStrategy || undefined;
+                await loadStockData(strategyToLoad, selectedDate);
+              }}
+              disabled={isLoading}
+              className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
+            >
+              {isLoading ? (
+                <>
+                  <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
+                  데이터 로딩 중...
+                </>
+              ) : (
+                <>
+                  🔄 데이터 새로고침
+                </>
+              )}
+            </button>
 
-          {uploadMessage && (
+            <div className="text-sm text-gray-400">
+              {strategies.length > 0 && `${strategies.length}개 전략 사용 가능`}
+            </div>
+          </div>
+
+          {loadMessage && (
             <div className={`p-3 rounded ${
-              uploadMessage.startsWith('✅')
+              loadMessage.startsWith('✅')
                 ? 'bg-green-900/20 border border-green-700 text-green-400'
                 : 'bg-red-900/20 border border-red-700 text-red-400'
             }`}>
-              {uploadMessage}
+              {loadMessage}
             </div>
           )}
 
           <div className="text-sm text-gray-400">
-            <p>• CSV 파일 형식: UTF-8 인코딩 권장</p>
-            <p>• 최대 파일 크기: 10MB</p>
-            <p>• 첫 번째 행은 헤더로 인식됩니다</p>
+            <p>• 데이터는 Supabase stock_rankings 테이블에서 가져옵니다</p>
+            <p>• 선택한 날짜와 전략에 따라 추천 종목이 표시됩니다</p>
+            <p>• 전략을 변경하면 자동으로 데이터가 업데이트됩니다</p>
           </div>
         </div>
       </div>
@@ -752,6 +839,13 @@ export default function QuantRecommendation() {
                     필터링률: {stocks.length > 0 ? ((filteredStocks.length / stocks.length) * 100).toFixed(1) : 0}%
                   </div>
                 </div>
+                {/* 필터링으로 인한 종목 누락 경고 */}
+                {stocks.length > 0 && filteredStocks.length < stocks.length && (
+                  <div className="mt-2 p-2 bg-yellow-900/20 border border-yellow-700 rounded text-xs text-yellow-400">
+                    ⚠️ {stocks.length - filteredStocks.length}개 종목이 필터 조건으로 인해 숨겨졌습니다.
+                    모든 종목을 보려면 &quot;필터 초기화&quot; 버튼을 클릭하세요.
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -762,7 +856,14 @@ export default function QuantRecommendation() {
       {stocks.length > 0 && (
         <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold">📊 퀀트 종목 추천 리스트</h3>
+            <div>
+              <h3 className="text-lg font-semibold">📊 퀀트 종목 추천 리스트</h3>
+              {stocks.length > 0 && stocks[0].strategy_name && (
+                <div className="text-sm text-gray-400 mt-1">
+                  전략: {stocks[0].strategy_name} | 날짜: {selectedDate}
+                </div>
+              )}
+            </div>
             <div className="text-sm text-blue-400 bg-blue-900/20 px-3 py-1 rounded-full border border-blue-700">
               {filteredStocks.length > 0 ? (
                 <>표시 중: {filteredStocks.length}개 / 전체: {stocks.length}개</>
@@ -1378,8 +1479,8 @@ export default function QuantRecommendation() {
 
                 <div className="text-sm text-gray-400">
                   총 예상 매수 금액: ₩{Object.entries(bulkBuySettings)
-                    .filter(([_, settings]) => settings.selected)
-                    .reduce((sum, [_, settings]) => sum + (settings.price * settings.quantity), 0)
+                    .filter(([, settings]) => settings.selected)
+                    .reduce((sum, [, settings]) => sum + (settings.price * settings.quantity), 0)
                     .toLocaleString()}
                 </div>
               </div>
