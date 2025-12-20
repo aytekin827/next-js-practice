@@ -17,18 +17,29 @@ interface KISSettings {
   KIS_BASE_URL: string;
 }
 
+interface UpbitSettings {
+  access_key: string;
+  secret_key: string;
+  base_url: string;
+}
+
 export default function TradingProfileModal({ isOpen, onClose, userEmail }: TradingProfileModalProps) {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
-  const [activeTab, setActiveTab] = useState<'password' | 'kis'>('password');
+  const [activeTab, setActiveTab] = useState<'password' | 'kis' | 'upbit'>('password');
   const [kisSettings, setKisSettings] = useState<KISSettings>({
     KIS_APP_KEY: '',
     KIS_APP_SECRET: '',
     KIS_CANO: '',
     KIS_ACNT_PRDT_CD: '',
     KIS_BASE_URL: 'https://openapi.koreainvestment.com:9443'
+  });
+  const [upbitSettings, setUpbitSettings] = useState<UpbitSettings>({
+    access_key: '',
+    secret_key: '',
+    base_url: 'https://api.upbit.com'
   });
 
   const supabase = createClient();
@@ -40,8 +51,21 @@ export default function TradingProfileModal({ isOpen, onClose, userEmail }: Trad
       setMessage('');
       setActiveTab('password');
       loadKISSettings();
+      loadUpbitSettings();
     }
   }, [isOpen]);
+
+  const loadUpbitSettings = async () => {
+    try {
+      const response = await fetch('/api/upbit-settings');
+      if (response.ok) {
+        const data = await response.json();
+        setUpbitSettings(prev => ({ ...prev, ...data }));
+      }
+    } catch (error) {
+      console.error('Upbit 설정 로딩 실패:', error);
+    }
+  };
 
   const loadKISSettings = async () => {
     try {
@@ -91,6 +115,37 @@ export default function TradingProfileModal({ isOpen, onClose, userEmail }: Trad
     }
   };
 
+  const updateUpbitSettings = async () => {
+    if (!upbitSettings.access_key || !upbitSettings.secret_key) {
+      setMessage('Access Key와 Secret Key를 모두 입력해주세요.');
+      return;
+    }
+
+    setLoading(true);
+    setMessage('');
+
+    try {
+      const response = await fetch('/api/upbit-settings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(upbitSettings),
+      });
+
+      if (response.ok) {
+        setMessage('Upbit API 설정이 성공적으로 저장되었습니다.');
+      } else {
+        const errorData = await response.json();
+        setMessage(errorData.error || '설정 저장에 실패했습니다.');
+      }
+    } catch (error) {
+      setMessage('설정 저장 중 오류가 발생했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const updateKISSettings = async () => {
     if (!kisSettings.KIS_APP_KEY || !kisSettings.KIS_APP_SECRET || !kisSettings.KIS_CANO) {
       setMessage('필수 항목을 모두 입력해주세요.');
@@ -120,6 +175,10 @@ export default function TradingProfileModal({ isOpen, onClose, userEmail }: Trad
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleUpbitChange = (field: keyof UpbitSettings, value: string) => {
+    setUpbitSettings(prev => ({ ...prev, [field]: value }));
   };
 
   const handleKISChange = (field: keyof KISSettings, value: string) => {
@@ -169,6 +228,16 @@ export default function TradingProfileModal({ isOpen, onClose, userEmail }: Trad
             }`}
           >
             🏦 한국투자증권 API
+          </button>
+          <button
+            onClick={() => setActiveTab('upbit')}
+            className={`flex-1 py-3 px-4 text-sm font-medium ${
+              activeTab === 'upbit'
+                ? 'text-blue-400 border-b-2 border-blue-400'
+                : 'text-gray-400 hover:text-gray-300'
+            }`}
+          >
+            ₿ Upbit API
           </button>
         </div>
 
@@ -222,6 +291,68 @@ export default function TradingProfileModal({ isOpen, onClose, userEmail }: Trad
                 className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
               >
                 {loading ? '처리 중...' : '비밀번호 변경'}
+              </button>
+            </div>
+          ) : activeTab === 'upbit' ? (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Access Key *
+                  </label>
+                  <input
+                    type="text"
+                    value={upbitSettings.access_key}
+                    onChange={(e) => handleUpbitChange('access_key', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-700 text-white"
+                    placeholder="Upbit Access Key"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Secret Key *
+                  </label>
+                  <input
+                    type="password"
+                    value={upbitSettings.secret_key}
+                    onChange={(e) => handleUpbitChange('secret_key', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-700 text-white"
+                    placeholder="Upbit Secret Key"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    API 서버 URL
+                  </label>
+                  <input
+                    type="text"
+                    value={upbitSettings.base_url}
+                    onChange={(e) => handleUpbitChange('base_url', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-700 text-white"
+                    placeholder="https://api.upbit.com"
+                  />
+                </div>
+              </div>
+
+              <div className="bg-gray-700 p-4 rounded-lg">
+                <h4 className="text-sm font-medium text-yellow-400 mb-2">⚠️ Upbit API 키 발급 안내</h4>
+                <ul className="text-xs text-gray-300 space-y-1">
+                  <li>• <a href="https://upbit.com/mypage/open_api_management" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300">Upbit 마이페이지 → Open API 관리</a>에서 발급</li>
+                  <li>• 필요한 권한: 자산 조회, 주문 조회, 주문하기</li>
+                  <li>• IP 주소 제한 설정을 권장합니다</li>
+                  <li>• API 키는 암호화되어 안전하게 저장됩니다</li>
+                  <li>• 절대 다른 사람과 공유하지 마세요</li>
+                </ul>
+              </div>
+
+              <button
+                onClick={updateUpbitSettings}
+                disabled={loading || !upbitSettings.access_key || !upbitSettings.secret_key}
+                className="w-full bg-orange-600 text-white py-2 px-4 rounded-lg hover:bg-orange-700 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
+              >
+                {loading ? '저장 중...' : 'Upbit API 설정 저장'}
               </button>
             </div>
           ) : (

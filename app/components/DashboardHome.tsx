@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 interface AssetData {
   totalAssets: number;
@@ -8,6 +8,13 @@ interface AssetData {
   realizedPnL: number;
   buyingPower: number;
   totalReturn: number;
+}
+
+interface CryptoAssetData {
+  totalAssets: number;
+  totalAssetsChange: number;
+  totalProfitLoss: number;
+  totalProfitLossPercent: number;
 }
 
 interface Holding {
@@ -19,6 +26,7 @@ interface Holding {
   totalValue: number;
   profitLoss: number;
   profitLossPercent: number;
+  market: 'stock' | 'crypto'; // 시장 구분 추가
 }
 
 interface TradeHistory {
@@ -39,6 +47,7 @@ interface TradeHistory {
   ccldTime: string;
   fee: number;
   marketType: string;
+  market: 'stock' | 'crypto'; // 시장 구분 추가
 }
 
 
@@ -49,6 +58,8 @@ const REFRESH_INTERVALS = {
 } as const;
 
 export default function DashboardHome() {
+  // 시장 필터 상태 추가
+  const [marketFilter, setMarketFilter] = useState<'all' | 'stock' | 'crypto'>('all');
 
   const [assetData, setAssetData] = useState<AssetData>({
     totalAssets: 0,
@@ -57,6 +68,15 @@ export default function DashboardHome() {
     buyingPower: 0,
     totalReturn: 0
   });
+
+  // 코인 자산 데이터 추가
+  const [cryptoAssetData, setCryptoAssetData] = useState<CryptoAssetData>({
+    totalAssets: 0,
+    totalAssetsChange: 0,
+    totalProfitLoss: 0,
+    totalProfitLossPercent: 0
+  });
+
   const [holdings, setHoldings] = useState<Holding[]>([]);
   const [tradeHistory, setTradeHistory] = useState<TradeHistory[]>([]);
   const [dataLoading, setDataLoading] = useState(false);
@@ -67,8 +87,8 @@ export default function DashboardHome() {
   const [tradeModalOpen, setTradeModalOpen] = useState(false);
 
   // 보유종목 테이블 정렬 상태
-  type HoldingSortField = 'name' | 'symbol' | 'quantity' | 'currentPrice' | 'avgPrice' | 'totalValue' | 'profitLoss' | 'profitLossPercent';
-  type TradeSortField = 'name' | 'symbol' | 'type' | 'quantity' | 'price' | 'totalAmount' | 'timestamp' | 'status';
+  type HoldingSortField = 'market' | 'name' | 'symbol' | 'quantity' | 'currentPrice' | 'avgPrice' | 'totalValue' | 'profitLoss' | 'profitLossPercent';
+  type TradeSortField = 'market' | 'name' | 'symbol' | 'type' | 'quantity' | 'price' | 'totalAmount' | 'timestamp' | 'status';
   type SortDirection = 'asc' | 'desc';
 
   const [holdingSortField, setHoldingSortField] = useState<HoldingSortField>('name');
@@ -96,8 +116,13 @@ export default function DashboardHome() {
     }
   };
 
-  // 정렬된 보유종목 데이터
-  const sortedHoldings = [...holdings].sort((a, b) => {
+  // 정렬된 보유종목 데이터 (필터링 적용)
+  const filteredHoldings = holdings.filter(holding => {
+    if (marketFilter === 'all') return true;
+    return holding.market === marketFilter;
+  });
+
+  const sortedHoldings = [...filteredHoldings].sort((a, b) => {
     let aValue: string | number = a[holdingSortField];
     let bValue: string | number = b[holdingSortField];
 
@@ -112,8 +137,13 @@ export default function DashboardHome() {
     return 0;
   });
 
-  // 정렬된 거래내역 데이터
-  const sortedTrades = [...tradeHistory].sort((a, b) => {
+  // 정렬된 거래내역 데이터 (필터링 적용)
+  const filteredTrades = tradeHistory.filter(trade => {
+    if (marketFilter === 'all') return true;
+    return trade.market === marketFilter;
+  });
+
+  const sortedTrades = [...filteredTrades].sort((a, b) => {
     let aValue: string | number = a[tradeSortField];
     let bValue: string | number = b[tradeSortField];
 
@@ -147,11 +177,12 @@ export default function DashboardHome() {
   const loadAssetData = async () => {
     setDataLoading(true);
     try {
-      const response = await fetch('/api/assets');
-      const data = await response.json();
+      // 주식 자산 데이터 로드
+      const stockResponse = await fetch('/api/assets');
+      const stockData = await stockResponse.json();
 
-      if (data.error) {
-        console.error('자산 데이터 오류:', data.error);
+      if (stockData.error) {
+        console.error('주식 자산 데이터 오류:', stockData.error);
         setAssetData({
           totalAssets: 0,
           totalAssetsChange: 0,
@@ -160,7 +191,43 @@ export default function DashboardHome() {
           totalReturn: 0
         });
       } else {
-        setAssetData(data);
+        setAssetData(stockData);
+      }
+
+      // 코인 자산 데이터 로드
+      try {
+        const cryptoResponse = await fetch('/api/crypto/assets');
+        const cryptoData = await cryptoResponse.json();
+
+        if (Array.isArray(cryptoData)) {
+          // 코인 자산 총합 계산
+          const totalCryptoAssets = cryptoData.reduce((sum, asset) => sum + (asset.totalValue || 0), 0);
+          const totalCryptoProfitLoss = cryptoData.reduce((sum, asset) => sum + (asset.profitLoss || 0), 0);
+          const totalInvestment = totalCryptoAssets - totalCryptoProfitLoss;
+          const totalCryptoProfitLossPercent = totalInvestment > 0 ? (totalCryptoProfitLoss / totalInvestment) * 100 : 0;
+
+          setCryptoAssetData({
+            totalAssets: totalCryptoAssets,
+            totalAssetsChange: totalCryptoProfitLoss,
+            totalProfitLoss: totalCryptoProfitLoss,
+            totalProfitLossPercent: totalCryptoProfitLossPercent
+          });
+        } else {
+          setCryptoAssetData({
+            totalAssets: 0,
+            totalAssetsChange: 0,
+            totalProfitLoss: 0,
+            totalProfitLossPercent: 0
+          });
+        }
+      } catch (cryptoError) {
+        console.error('코인 자산 데이터 로딩 실패:', cryptoError);
+        setCryptoAssetData({
+          totalAssets: 0,
+          totalAssetsChange: 0,
+          totalProfitLoss: 0,
+          totalProfitLossPercent: 0
+        });
       }
     } catch (error) {
       console.error('자산 데이터 로딩 실패:', error);
@@ -176,39 +243,115 @@ export default function DashboardHome() {
     }
   };
 
-  const loadHoldings = async () => {
+  const loadHoldings = useCallback(async () => {
     try {
-      const response = await fetch('/api/holdings');
-      const data = await response.json();
+      // 주식 보유 종목 로드
+      const stockResponse = await fetch('/api/holdings');
+      const stockData = await stockResponse.json();
 
-      if (Array.isArray(data)) {
-        setHoldings(data);
-      } else {
-        console.error('보유 종목 데이터 오류:', data.error);
-        setHoldings([]);
+      const stockHoldings = Array.isArray(stockData) 
+        ? stockData.map(holding => ({ ...holding, market: 'stock' as const }))
+        : [];
+
+      // 코인 보유 종목 로드
+      let cryptoHoldings: Holding[] = [];
+      try {
+        const cryptoResponse = await fetch('/api/crypto/assets');
+        const cryptoData = await cryptoResponse.json();
+
+        if (Array.isArray(cryptoData)) {
+          cryptoHoldings = cryptoData
+            .filter(asset => asset.balance > 0)
+            .map(asset => ({
+              symbol: asset.currency,
+              name: getCoinName(asset.currency),
+              quantity: asset.balance,
+              currentPrice: asset.currentPrice || 0,
+              avgPrice: asset.avgBuyPrice,
+              totalValue: asset.totalValue || 0,
+              profitLoss: asset.profitLoss || 0,
+              profitLossPercent: asset.profitLossPercent || 0,
+              market: 'crypto' as const
+            }));
+        }
+      } catch (cryptoError) {
+        console.error('코인 보유 종목 로딩 실패:', cryptoError);
       }
+
+      // 주식과 코인 보유 종목 합치기
+      setHoldings([...stockHoldings, ...cryptoHoldings]);
     } catch (error) {
       console.error('보유 종목 데이터 로딩 실패:', error);
       setHoldings([]);
     }
-  };
+  }, []);
 
   const loadTradeHistory = async () => {
     try {
-      // 한국 시간 기준으로 오늘 날짜 사용
-      const response = await fetch('/api/trades');
-      const data = await response.json();
+      // 주식 거래 내역 로드
+      const stockResponse = await fetch('/api/trades');
+      const stockData = await stockResponse.json();
 
-      if (Array.isArray(data)) {
-        setTradeHistory(data);
-      } else {
-        console.error('거래 내역 데이터 오류:', data.error);
-        setTradeHistory([]);
+      const stockTrades = Array.isArray(stockData)
+        ? stockData.map(trade => ({ ...trade, market: 'stock' as const }))
+        : [];
+
+      // 코인 거래 내역 로드
+      let cryptoTrades: TradeHistory[] = [];
+      try {
+        const cryptoResponse = await fetch('/api/crypto/trades/recent');
+        const cryptoData = await cryptoResponse.json();
+
+        if (Array.isArray(cryptoData)) {
+          cryptoTrades = cryptoData.map(trade => ({
+            id: trade.id,
+            symbol: trade.market,
+            name: trade.market,
+            type: trade.side === 'bid' ? 'buy' as const : 'sell' as const,
+            quantity: trade.executedVolume || trade.volume,
+            price: trade.executedPrice || trade.price,
+            totalAmount: (trade.executedVolume || trade.volume) * (trade.executedPrice || trade.price),
+            timestamp: trade.executedTime || trade.orderTime,
+            status: trade.status === 'completed' ? 'completed' as const : 
+                    trade.status === 'partial' ? 'partial' as const : 'pending' as const,
+            orderNumber: trade.upbitOrderId || trade.id,
+            orderQuantity: trade.volume,
+            remainingQuantity: trade.volume - (trade.executedVolume || 0),
+            orderType: trade.orderType,
+            orderTime: trade.orderTime,
+            ccldTime: trade.executedTime || '',
+            fee: trade.fee || 0,
+            marketType: 'CRYPTO',
+            market: 'crypto' as const
+          }));
+        }
+      } catch (cryptoError) {
+        console.error('코인 거래 내역 로딩 실패:', cryptoError);
       }
+
+      // 주식과 코인 거래 내역 합치기
+      setTradeHistory([...stockTrades, ...cryptoTrades]);
     } catch (error) {
       console.error('거래 내역 데이터 로딩 실패:', error);
       setTradeHistory([]);
     }
+  };
+
+  // 코인 이름 매핑 함수
+  const getCoinName = (currency: string) => {
+    const coinNames: Record<string, string> = {
+      'BTC': '비트코인',
+      'ETH': '이더리움',
+      'XRP': '리플',
+      'ADA': '에이다',
+      'DOT': '폴카닷',
+      'LINK': '체인링크',
+      'LTC': '라이트코인',
+      'BCH': '비트코인캐시',
+      'SOL': '솔라나',
+      'AVAX': '아발란체'
+    };
+    return coinNames[currency] || currency;
   };
 
   // 거래 상세 모달 열기
@@ -264,7 +407,7 @@ export default function DashboardHome() {
     loadAssetData();
     loadHoldings();
     loadTradeHistory();
-  }, []);
+  }, [loadHoldings]);
 
   // 주기적 데이터 업데이트
   useEffect(() => {
@@ -277,97 +420,225 @@ export default function DashboardHome() {
     }, refreshInterval);
 
     return () => clearInterval(dataInterval);
-  }, [refreshInterval]);
+  }, [loadHoldings, refreshInterval]);
 
   return (
     <div className="p-6 space-y-6">
-      {/* 새로고침 주기 설정 */}
-      <div className="flex justify-end">
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-400">새로고침:</span>
-          <select
-            value={refreshInterval}
-            onChange={(e) => setRefreshInterval(Number(e.target.value))}
-            className="bg-gray-700 border border-gray-600 rounded px-2 py-1 text-xs text-white"
-          >
-            <option value={10000}>10초</option>
-            <option value={30000}>30초</option>
-            <option value={60000}>1분</option>
-            <option value={300000}>5분</option>
-            <option value={0}>수동</option>
-          </select>
-          {refreshInterval === 0 && (
-            <button
-              onClick={() => {
-                loadAssetData();
-                loadHoldings();
-                loadTradeHistory();
-              }}
-              className="bg-blue-600 hover:bg-blue-700 text-xs px-2 py-1 rounded transition-colors"
-              title="수동 새로고침"
+      {/* 헤더와 필터 */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">🏠 통합 대시보드</h1>
+          <p className="text-gray-400 mt-1">주식 & 코인 통합 포트폴리오</p>
+        </div>
+        
+        <div className="flex items-center gap-4">
+          {/* 시장 필터 */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-400">시장:</span>
+            <select
+              value={marketFilter}
+              onChange={(e) => setMarketFilter(e.target.value as 'all' | 'stock' | 'crypto')}
+              className="bg-gray-700 border border-gray-600 rounded px-3 py-1 text-sm text-white"
             >
-              🔄
-            </button>
-          )}
+              <option value="all">전체</option>
+              <option value="stock">주식</option>
+              <option value="crypto">코인</option>
+            </select>
+          </div>
+
+          {/* 새로고침 설정 */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-400">새로고침:</span>
+            <select
+              value={refreshInterval}
+              onChange={(e) => setRefreshInterval(Number(e.target.value))}
+              className="bg-gray-700 border border-gray-600 rounded px-2 py-1 text-xs text-white"
+            >
+              <option value={10000}>10초</option>
+              <option value={30000}>30초</option>
+              <option value={60000}>1분</option>
+              <option value={300000}>5분</option>
+              <option value={0}>수동</option>
+            </select>
+            {refreshInterval === 0 && (
+              <button
+                onClick={() => {
+                  loadAssetData();
+                  loadHoldings();
+                  loadTradeHistory();
+                }}
+                className="bg-blue-600 hover:bg-blue-700 text-xs px-2 py-1 rounded transition-colors"
+                title="수동 새로고침"
+              >
+                🔄
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
       {/* 자산 현황 카드 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="space-y-6">
         {dataLoading ? (
           // 스켈레톤 UI
           <>
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="bg-gray-800 rounded-lg p-6 border border-gray-700 animate-pulse">
-                <div className="h-4 bg-gray-700 rounded mb-2 w-20"></div>
-                <div className="h-8 bg-gray-700 rounded mb-1 w-32"></div>
-                <div className="h-4 bg-gray-700 rounded w-16"></div>
-              </div>
-            ))}
+            {/* 1행: 총 실현손익, 총 수익률 */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {[1, 2].map((i) => (
+                <div key={i} className="bg-gray-800 rounded-lg p-6 border border-gray-700 animate-pulse">
+                  <div className="h-4 bg-gray-700 rounded mb-2 w-24"></div>
+                  <div className="h-8 bg-gray-700 rounded mb-1 w-32"></div>
+                  <div className="h-4 bg-gray-700 rounded w-16"></div>
+                </div>
+              ))}
+            </div>
+            
+            {/* 2행: 주식 관련 */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="bg-gray-800 rounded-lg p-6 border border-gray-700 animate-pulse">
+                  <div className="h-4 bg-gray-700 rounded mb-2 w-20"></div>
+                  <div className="h-8 bg-gray-700 rounded mb-1 w-32"></div>
+                  <div className="h-4 bg-gray-700 rounded w-16"></div>
+                </div>
+              ))}
+            </div>
+            
+            {/* 3행: 코인 관련 */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="bg-gray-800 rounded-lg p-6 border border-gray-700 animate-pulse">
+                  <div className="h-4 bg-gray-700 rounded mb-2 w-20"></div>
+                  <div className="h-8 bg-gray-700 rounded mb-1 w-32"></div>
+                  <div className="h-4 bg-gray-700 rounded w-16"></div>
+                </div>
+              ))}
+            </div>
           </>
         ) : (
           // 실제 데이터
           <>
-            <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-              <h3 className="text-sm text-gray-400 mb-2">총 자산</h3>
-              <div className="text-2xl font-bold mb-1">
-                ₩{assetData.totalAssets.toLocaleString()}
+            {/* 1행: 총 실현손익, 총 수익률 */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                <h3 className="text-sm text-gray-400 mb-2">총 실현손익</h3>
+                <div className={`text-3xl font-bold mb-1 ${
+                  (assetData.realizedPnL + cryptoAssetData.totalProfitLoss) > 0 ? 'text-red-400' :
+                  (assetData.realizedPnL + cryptoAssetData.totalProfitLoss) < 0 ? 'text-blue-400' :
+                  'text-white'
+                }`}>
+                  {(assetData.realizedPnL + cryptoAssetData.totalProfitLoss) > 0 ? '+' : ''}₩{(assetData.realizedPnL + cryptoAssetData.totalProfitLoss).toLocaleString()}
+                </div>
+                <div className="text-sm text-gray-500">주식 + 코인</div>
               </div>
-              <div className={`text-sm ${assetData.totalAssetsChange >= 0 ? 'text-red-400' : 'text-blue-400'}`}>
-                {assetData.totalAssetsChange >= 0 ? '+' : ''}₩{assetData.totalAssetsChange.toLocaleString()}
+
+              <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                <h3 className="text-sm text-gray-400 mb-2">총 수익률</h3>
+                <div className={`text-3xl font-bold mb-1 ${
+                  ((assetData.totalReturn + cryptoAssetData.totalProfitLossPercent) / 2) > 0 ? 'text-red-400' :
+                  ((assetData.totalReturn + cryptoAssetData.totalProfitLossPercent) / 2) < 0 ? 'text-blue-400' :
+                  'text-white'
+                }`}>
+                  {((assetData.totalReturn + cryptoAssetData.totalProfitLossPercent) / 2) > 0 ? '+' : ''}{((assetData.totalReturn + cryptoAssetData.totalProfitLossPercent) / 2).toFixed(2)}%
+                </div>
+                <div className="text-sm text-gray-500">통합 평균</div>
               </div>
             </div>
 
-            <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-              <h3 className="text-sm text-gray-400 mb-2">실현 손익</h3>
-              <div className={`text-2xl font-bold mb-1 ${
-                assetData.realizedPnL > 0 ? 'text-red-400' :
-                assetData.realizedPnL < 0 ? 'text-blue-400' :
-                'text-white'
-              }`}>
-                ₩{assetData.realizedPnL.toLocaleString()}
+            {/* 2행: 주식 관련 */}
+            <div>
+              <h3 className="text-lg font-semibold mb-4 text-blue-400">📈 주식 포트폴리오</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                  <h3 className="text-sm text-gray-400 mb-2">주식 자산</h3>
+                  <div className="text-2xl font-bold mb-1">
+                    ₩{assetData.totalAssets.toLocaleString()}
+                  </div>
+                  <div className={`text-sm ${assetData.totalAssetsChange >= 0 ? 'text-red-400' : 'text-blue-400'}`}>
+                    {assetData.totalAssetsChange >= 0 ? '+' : ''}₩{assetData.totalAssetsChange.toLocaleString()}
+                  </div>
+                </div>
+
+                <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                  <h3 className="text-sm text-gray-400 mb-2">주식 주문가능금액</h3>
+                  <div className="text-2xl font-bold mb-1">
+                    ₩{assetData.buyingPower.toLocaleString()}
+                  </div>
+                  <div className="text-sm text-gray-500">현금</div>
+                </div>
+
+                <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                  <h3 className="text-sm text-gray-400 mb-2">주식 실현손익</h3>
+                  <div className={`text-2xl font-bold mb-1 ${
+                    assetData.realizedPnL > 0 ? 'text-red-400' :
+                    assetData.realizedPnL < 0 ? 'text-blue-400' :
+                    'text-white'
+                  }`}>
+                    {assetData.realizedPnL > 0 ? '+' : ''}₩{assetData.realizedPnL.toLocaleString()}
+                  </div>
+                  <div className="text-sm text-gray-500">오늘</div>
+                </div>
+
+                <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                  <h3 className="text-sm text-gray-400 mb-2">주식 수익률</h3>
+                  <div className={`text-2xl font-bold mb-1 ${
+                    assetData.totalReturn > 0 ? 'text-red-400' :
+                    assetData.totalReturn < 0 ? 'text-blue-400' :
+                    'text-white'
+                  }`}>
+                    {assetData.totalReturn > 0 ? '+' : ''}{assetData.totalReturn.toFixed(2)}%
+                  </div>
+                  <div className="text-sm text-gray-500">전체</div>
+                </div>
               </div>
-              <div className="text-sm text-gray-500">오늘</div>
             </div>
 
-            <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-              <h3 className="text-sm text-gray-400 mb-2">주문 가능 금액</h3>
-              <div className="text-2xl font-bold mb-1">
-                ₩{assetData.buyingPower.toLocaleString()}
-              </div>
-              <div className="text-sm text-gray-500">현금</div>
-            </div>
+            {/* 3행: 코인 관련 */}
+            <div>
+              <h3 className="text-lg font-semibold mb-4 text-orange-400">₿ 코인 포트폴리오</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                  <h3 className="text-sm text-gray-400 mb-2">코인 평가자산</h3>
+                  <div className="text-2xl font-bold mb-1">
+                    ₩{cryptoAssetData.totalAssets.toLocaleString()}
+                  </div>
+                  <div className={`text-sm ${cryptoAssetData.totalAssetsChange >= 0 ? 'text-red-400' : 'text-blue-400'}`}>
+                    {cryptoAssetData.totalAssetsChange >= 0 ? '+' : ''}₩{cryptoAssetData.totalAssetsChange.toLocaleString()}
+                  </div>
+                </div>
 
-            <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-              <h3 className="text-sm text-gray-400 mb-2">총 수익률</h3>
-              <div className={`text-2xl font-bold mb-1 ${
-                assetData.totalReturn > 0 ? 'text-red-400' :
-                assetData.totalReturn < 0 ? 'text-blue-400' :
-                'text-white'
-              }`}>
-                {assetData.totalReturn > 0 ? '+' : ''}{assetData.totalReturn.toFixed(2)}%
+                <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                  <h3 className="text-sm text-gray-400 mb-2">코인 주문가능금액</h3>
+                  <div className="text-2xl font-bold mb-1">
+                    ₩{(cryptoAssetData.totalAssets * 0.1).toLocaleString()}
+                  </div>
+                  <div className="text-sm text-gray-500">추정 (10%)</div>
+                </div>
+
+                <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                  <h3 className="text-sm text-gray-400 mb-2">코인 손익</h3>
+                  <div className={`text-2xl font-bold mb-1 ${
+                    cryptoAssetData.totalProfitLoss > 0 ? 'text-red-400' :
+                    cryptoAssetData.totalProfitLoss < 0 ? 'text-blue-400' :
+                    'text-white'
+                  }`}>
+                    {cryptoAssetData.totalProfitLoss > 0 ? '+' : ''}₩{cryptoAssetData.totalProfitLoss.toLocaleString()}
+                  </div>
+                  <div className="text-sm text-gray-500">평가손익</div>
+                </div>
+
+                <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                  <h3 className="text-sm text-gray-400 mb-2">코인 수익률</h3>
+                  <div className={`text-2xl font-bold mb-1 ${
+                    cryptoAssetData.totalProfitLossPercent > 0 ? 'text-red-400' :
+                    cryptoAssetData.totalProfitLossPercent < 0 ? 'text-blue-400' :
+                    'text-white'
+                  }`}>
+                    {cryptoAssetData.totalProfitLossPercent > 0 ? '+' : ''}{cryptoAssetData.totalProfitLossPercent.toFixed(2)}%
+                  </div>
+                  <div className="text-sm text-gray-500">전체</div>
+                </div>
               </div>
-              <div className="text-sm text-gray-500">전체</div>
             </div>
           </>
         )}
@@ -375,16 +646,53 @@ export default function DashboardHome() {
 
       {/* 보유 종목 - 전체 너비 */}
       <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-          <h2 className="text-lg font-semibold mb-4">📊 보유 종목</h2>
+          <h2 className="text-lg font-semibold mb-4">
+            📊 보유 종목 
+            {marketFilter !== 'all' && (
+              <span className="text-sm text-gray-400 ml-2">
+                ({marketFilter === 'stock' ? '주식' : '코인'})
+              </span>
+            )}
+          </h2>
           <div className="overflow-x-auto">
-            {holdings.length === 0 ? (
+            {dataLoading ? (
+              // 보유종목 스켈레톤 UI
+              <div className="space-y-3">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div key={i} className="flex items-center space-x-4 py-3 animate-pulse">
+                    {marketFilter === 'all' && (
+                      <div className="w-12 h-4 bg-gray-700 rounded"></div>
+                    )}
+                    <div className="w-24 h-4 bg-gray-700 rounded"></div>
+                    <div className="w-16 h-4 bg-gray-700 rounded"></div>
+                    <div className="w-20 h-4 bg-gray-700 rounded"></div>
+                    <div className="w-24 h-4 bg-gray-700 rounded"></div>
+                    <div className="w-24 h-4 bg-gray-700 rounded"></div>
+                    <div className="w-28 h-4 bg-gray-700 rounded"></div>
+                    <div className="w-24 h-4 bg-gray-700 rounded"></div>
+                    <div className="w-16 h-4 bg-gray-700 rounded"></div>
+                  </div>
+                ))}
+              </div>
+            ) : filteredHoldings.length === 0 ? (
               <div className="text-center text-gray-400 py-8">
-                보유 종목이 없습니다
+                {marketFilter === 'all' ? '보유 종목이 없습니다' : 
+                 marketFilter === 'stock' ? '보유 주식이 없습니다' : '보유 코인이 없습니다'}
               </div>
             ) : (
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-gray-600">
+                    {marketFilter === 'all' && (
+                      <th
+                        className="text-left py-3 px-2 cursor-pointer hover:bg-gray-700 transition-colors"
+                        onClick={() => handleHoldingSort('market')}
+                      >
+                        <div className="flex items-center gap-1">
+                          시장 <HoldingSortIcon field="market" />
+                        </div>
+                      </th>
+                    )}
                     <th
                       className="text-left py-3 px-2 cursor-pointer hover:bg-gray-700 transition-colors"
                       onClick={() => handleHoldingSort('name')}
@@ -457,6 +765,15 @@ export default function DashboardHome() {
                       key={`${holding.symbol}-${index}`}
                       className="border-b border-gray-700 hover:bg-gray-700/50 transition-colors"
                     >
+                      {marketFilter === 'all' && (
+                        <td className="py-3 px-2">
+                          <span className={`text-xs font-semibold px-2 py-1 rounded ${
+                            holding.market === 'stock' ? 'bg-blue-600 text-white' : 'bg-orange-600 text-white'
+                          }`}>
+                            {holding.market === 'stock' ? '📈 주식' : '₿ 코인'}
+                          </span>
+                        </td>
+                      )}
                       <td className="py-3 px-2">
                         <div className="font-semibold">{holding.name}</div>
                       </td>
@@ -464,7 +781,7 @@ export default function DashboardHome() {
                         {holding.symbol}
                       </td>
                       <td className="py-3 px-2 text-right">
-                        {holding.quantity.toLocaleString()}주
+                        {holding.quantity.toLocaleString()}{holding.market === 'stock' ? '주' : ''}
                       </td>
                       <td className="py-3 px-2 text-right font-semibold">
                         ₩{holding.currentPrice.toLocaleString()}
@@ -506,7 +823,26 @@ export default function DashboardHome() {
           </span>
         </div>
         <div className="overflow-x-auto">
-          {tradeHistory.length === 0 ? (
+          {dataLoading ? (
+            // 거래내역 스켈레톤 UI
+            <div className="space-y-3">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="flex items-center space-x-4 py-3 animate-pulse">
+                  {marketFilter === 'all' && (
+                    <div className="w-12 h-4 bg-gray-700 rounded"></div>
+                  )}
+                  <div className="w-12 h-4 bg-gray-700 rounded"></div>
+                  <div className="w-24 h-4 bg-gray-700 rounded"></div>
+                  <div className="w-16 h-4 bg-gray-700 rounded"></div>
+                  <div className="w-20 h-4 bg-gray-700 rounded"></div>
+                  <div className="w-24 h-4 bg-gray-700 rounded"></div>
+                  <div className="w-28 h-4 bg-gray-700 rounded"></div>
+                  <div className="w-16 h-4 bg-gray-700 rounded"></div>
+                  <div className="w-16 h-4 bg-gray-700 rounded"></div>
+                </div>
+              ))}
+            </div>
+          ) : tradeHistory.length === 0 ? (
             <div className="text-center text-gray-400 py-8">
               오늘 거래 내역이 없습니다
             </div>
@@ -514,6 +850,16 @@ export default function DashboardHome() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-600">
+                  {marketFilter === 'all' && (
+                    <th
+                      className="text-left py-3 px-2 cursor-pointer hover:bg-gray-700 transition-colors"
+                      onClick={() => handleTradeSort('market')}
+                    >
+                      <div className="flex items-center gap-1">
+                        시장 <TradeSortIcon field="market" />
+                      </div>
+                    </th>
+                  )}
                   <th
                     className="text-left py-3 px-2 cursor-pointer hover:bg-gray-700 transition-colors"
                     onClick={() => handleTradeSort('type')}
@@ -587,6 +933,15 @@ export default function DashboardHome() {
                     onClick={() => openTradeModal(trade)}
                     className="border-b border-gray-700 hover:bg-gray-700/50 transition-colors cursor-pointer"
                   >
+                    {marketFilter === 'all' && (
+                      <td className="py-3 px-2">
+                        <span className={`text-xs font-semibold px-2 py-1 rounded ${
+                          trade.market === 'stock' ? 'bg-blue-600 text-white' : 'bg-orange-600 text-white'
+                        }`}>
+                          {trade.market === 'stock' ? '📈 주식' : '₿ 코인'}
+                        </span>
+                      </td>
+                    )}
                     <td className="py-3 px-2">
                       <span className={`text-xs font-semibold px-2 py-1 rounded ${
                         trade.type === 'buy' ? 'bg-red-600 text-white' : 'bg-blue-600 text-white'
@@ -601,7 +956,7 @@ export default function DashboardHome() {
                       {trade.symbol}
                     </td>
                     <td className="py-3 px-2 text-right">
-                      {trade.quantity.toLocaleString()}주
+                      {trade.quantity.toLocaleString()}{trade.market === 'stock' ? '주' : ''}
                     </td>
                     <td className="py-3 px-2 text-right font-semibold">
                       ₩{trade.price.toLocaleString()}

@@ -11,8 +11,8 @@ interface User {
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
-  currentPage: 'dashboard' | 'analysis' | 'quantum-recommendation' | 'stock-sell' | 'settings';
-  onPageChange: (page: 'dashboard' | 'analysis' | 'quantum-recommendation' | 'stock-sell' | 'settings') => void;
+  currentPage: 'dashboard' | 'analysis' | 'quantum-recommendation' | 'stock-sell' | 'crypto-analysis' | 'crypto-trading' | 'settings';
+  onPageChange: (page: 'dashboard' | 'analysis' | 'quantum-recommendation' | 'stock-sell' | 'crypto-analysis' | 'crypto-trading' | 'settings') => void;
 }
 
 export default function DashboardLayout({ children, currentPage, onPageChange }: DashboardLayoutProps) {
@@ -71,33 +71,45 @@ export default function DashboardLayout({ children, currentPage, onPageChange }:
   const menuItems = [
     {
       id: 'dashboard' as const,
-      name: '대시보드',
-      icon: '📊',
-      description: '계좌 현황 및 봇 제어'
+      name: '통합 대시보드',
+      icon: '🏠',
+      description: '주식 & 코인 통합 포트폴리오'
     },
     {
       id: 'analysis' as const,
-      name: '시초가 갭 & 돌파(Gap & Breakout) 전략',
+      name: '갭 돌파 전략',
       icon: '📈',
       description: '시초가 갭을 이용한 돌파 전략'
     },
     {
       id: 'quantum-recommendation' as const,
-      name: '퀀트종목추천',
+      name: '퀀트 종목추천',
       icon: '🚀',
-      description: 'CSV 파일 업로드를 통한 퀀트 종목 추천 및 매수'
+      description: 'AI 기반 종목 분석 및 추천'
     },
     {
       id: 'stock-sell' as const,
-      name: '주식매도',
+      name: '주식 매도',
       icon: '💰',
-      description: '보유 종목 매도 및 매도 주문 관리'
+      description: '보유 주식 매도 및 주문 관리'
+    },
+    {
+      id: 'crypto-analysis' as const,
+      name: '코인시장 분석',
+      icon: '📊',
+      description: '암호화폐 시장 분석 도구'
+    },
+    {
+      id: 'crypto-trading' as const,
+      name: '코인 자동매매',
+      icon: '₿',
+      description: '암호화폐 자동매매 전략 관리'
     },
     {
       id: 'settings' as const,
-      name: '트레이딩 설정',
+      name: '시스템 설정',
       icon: '⚙️',
-      description: '전략 및 기본값 설정'
+      description: '거래 설정 및 API 연동 관리'
     }
   ];
 
