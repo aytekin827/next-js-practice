@@ -3,6 +3,7 @@ import glob
 import datetime
 import re
 import math
+import hashlib
 import pandas as pd
 import numpy as np
 from supabase import create_client, Client
@@ -16,6 +17,39 @@ SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 # 설정
 BUCKET_NAME = "stock-data"
 TARGET_DIR = "strategies"
+
+def get_file_hash(file_path):
+    """파일의 MD5 해시값을 계산합니다."""
+    hash_md5 = hashlib.md5()
+    with open(file_path, "rb") as f:
+        for chunk in iter(lambda: f.read(4096), b""):
+            hash_md5.update(chunk)
+    return hash_md5.hexdigest()
+
+def check_storage_exists(supabase, bucket_name, storage_path):
+    """Storage에 파일이 이미 존재하는지 확인합니다."""
+    try:
+        response = supabase.storage.from_(bucket_name).list(path=os.path.dirname(storage_path))
+        filename = os.path.basename(storage_path)
+        return any(file['name'] == filename for file in response)
+    except Exception:
+        return False
+
+def check_db_exists(supabase, strategy_number, ref_date):
+    """DB에 같은 전략/날짜 데이터가 이미 존재하는지 확인합니다."""
+    try:
+        response = supabase.table("stock_rankings").select("id").eq("strategy_number", strategy_number).eq("ref_date", ref_date).execute()
+        return len(response.data) > 0
+    except Exception:
+        return False
+
+def check_file_hash_exists(supabase, file_hash):
+    """DB에 같은 해시값의 파일이 이미 업로드되었는지 확인합니다."""
+    try:
+        response = supabase.table("stock_rankings").select("id").eq("file_hash", file_hash).limit(1).execute()
+        return len(response.data) > 0
+    except Exception:
+        return False
 
 def get_today_str():
     return datetime.datetime.now().strftime("%Y%m%d")
@@ -79,21 +113,48 @@ def upload_and_insert():
         safe_filename = make_safe_storage_name(original_filename)
         storage_path = f"{today_str}/{safe_filename}"[:-8]
 
+        # 파일 해시 계산
+        file_hash = get_file_hash(file_path)
+
+        # 전략 번호 추출
+        strategy_number = original_filename.split('_')[0].split()[1] if '전략' in original_filename else "unknown"
+
+        # 중복 체크
+        storage_exists = check_storage_exists(supabase, BUCKET_NAME, storage_path)
+        db_exists = check_db_exists(supabase, strategy_number, today_str)
+        hash_exists = check_file_hash_exists(supabase, file_hash)
+
+        if hash_exists:
+            print(f"[SKIP] 동일한 파일이 이미 업로드됨 (해시 일치): {original_filename}")
+            continue
+
+        if storage_exists and db_exists:
+            print(f"[SKIP] 이미 업로드됨: {original_filename}")
+            continue
+
         # A. Storage 업로드
         try:
-            with open(file_path, 'rb') as f:
-                supabase.storage.from_(BUCKET_NAME).upload(
-                    path=storage_path,
-                    file=f,
-                    file_options={"content-type": "text/csv", "x-upsert": "true"}
-                )
-            print(f"[Storage] 업로드 성공: {original_filename}")
+            if not storage_exists:
+                with open(file_path, 'rb') as f:
+                    supabase.storage.from_(BUCKET_NAME).upload(
+                        path=storage_path,
+                        file=f,
+                        file_options={"content-type": "text/csv", "x-upsert": "true"}
+                    )
+                print(f"[Storage] 업로드 성공: {original_filename}")
+            else:
+                print(f"[Storage] 이미 존재함: {original_filename}")
         except Exception as e:
             # 403 에러가 나면 SQL 실행 여부를 확인하세요.
             print(f"[Storage] 에러 (SQL 권한 설정을 확인하세요): {e}")
+            continue
 
         # B. DB Insert
         try:
+            if db_exists:
+                print(f"[DB] 이미 존재함: {original_filename}")
+                continue
+
             df = pd.read_csv(file_path)
 
             # 컬럼 매핑
@@ -123,21 +184,23 @@ def upload_and_insert():
                     db_df[col] = pd.to_numeric(db_df[col], errors='coerce')
 
             # 메타데이터 추가
-            db_df['strategy_number'] = original_filename.split('_')[0].split()[1]
+            db_df['strategy_number'] = strategy_number
             db_df['strategy_name'] = ''.join(original_filename.split('_')[0].split()[2:])
-            db_df['ref_date'] = datetime.datetime.now().strftime("%Y-%m-%d")
+            db_df['ref_date'] = today_str
             db_df['storage_path'] = storage_path
+            db_df['file_hash'] = file_hash
 
             # [수정] Dictionary 변환 후 정밀 세탁 (Sanitize)
             raw_records = db_df.to_dict(orient='records')
             cleaned_records = [clean_record_for_json(r) for r in raw_records]
 
             # Supabase 전송
-            response = supabase.table("stock_rankings").insert(cleaned_records).execute()
+            _ = supabase.table("stock_rankings").insert(cleaned_records).execute()
             print(f"[DB] 저장 성공: {db_df['strategy_name'].iloc[0]} ({len(cleaned_records)}행)")
 
         except Exception as e:
             print(f"[DB] 저장 에러 ({original_filename}): {e}")
+            continue
 
     print("[INFO] 모든 작업 완료")
 
