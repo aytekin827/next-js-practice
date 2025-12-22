@@ -543,7 +543,7 @@ export default function DashboardHome() {
                   (assetData.realizedPnL + cryptoAssetData.totalProfitLoss) < 0 ? 'text-blue-400' :
                   'text-white'
                 }`}>
-                  {(assetData.realizedPnL + cryptoAssetData.totalProfitLoss) > 0 ? '+' : ''}₩{(assetData.realizedPnL + cryptoAssetData.totalProfitLoss).toLocaleString()}
+                  {(assetData.realizedPnL + cryptoAssetData.totalProfitLoss) > 0 ? '+' : ''}₩{Math.round(assetData.realizedPnL + cryptoAssetData.totalProfitLoss).toLocaleString()}
                 </div>
                 <div className="text-sm text-gray-500">주식 + 코인</div>
               </div>
@@ -568,17 +568,17 @@ export default function DashboardHome() {
                 <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
                   <h3 className="text-sm text-gray-400 mb-2">주식 자산</h3>
                   <div className="text-2xl font-bold mb-1">
-                    ₩{assetData.totalAssets.toLocaleString()}
+                    ₩{Math.round(assetData.totalAssets).toLocaleString()}
                   </div>
                   <div className={`text-sm ${assetData.totalAssetsChange >= 0 ? 'text-red-400' : 'text-blue-400'}`}>
-                    {assetData.totalAssetsChange >= 0 ? '+' : ''}₩{assetData.totalAssetsChange.toLocaleString()}
+                    {assetData.totalAssetsChange >= 0 ? '+' : ''}₩{Math.round(assetData.totalAssetsChange).toLocaleString()}
                   </div>
                 </div>
 
                 <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
                   <h3 className="text-sm text-gray-400 mb-2">주식 주문가능금액</h3>
                   <div className="text-2xl font-bold mb-1">
-                    ₩{assetData.buyingPower.toLocaleString()}
+                    ₩{Math.round(assetData.buyingPower).toLocaleString()}
                   </div>
                   <div className="text-sm text-gray-500">현금</div>
                 </div>
@@ -590,7 +590,7 @@ export default function DashboardHome() {
                     assetData.realizedPnL < 0 ? 'text-blue-400' :
                     'text-white'
                   }`}>
-                    {assetData.realizedPnL > 0 ? '+' : ''}₩{assetData.realizedPnL.toLocaleString()}
+                    {assetData.realizedPnL > 0 ? '+' : ''}₩{Math.round(assetData.realizedPnL).toLocaleString()}
                   </div>
                   <div className="text-sm text-gray-500">오늘</div>
                 </div>
@@ -616,17 +616,17 @@ export default function DashboardHome() {
                 <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
                   <h3 className="text-sm text-gray-400 mb-2">코인 평가자산</h3>
                   <div className="text-2xl font-bold mb-1">
-                    ₩{cryptoAssetData.totalAssets.toLocaleString()}
+                    ₩{Math.round(cryptoAssetData.totalAssets).toLocaleString()}
                   </div>
                   <div className={`text-sm ${cryptoAssetData.totalAssetsChange >= 0 ? 'text-red-400' : 'text-blue-400'}`}>
-                    {cryptoAssetData.totalAssetsChange >= 0 ? '+' : ''}₩{cryptoAssetData.totalAssetsChange.toLocaleString()}
+                    {cryptoAssetData.totalAssetsChange >= 0 ? '+' : ''}₩{Math.round(cryptoAssetData.totalAssetsChange).toLocaleString()}
                   </div>
                 </div>
 
                 <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
                   <h3 className="text-sm text-gray-400 mb-2">코인 주문가능금액</h3>
                   <div className="text-2xl font-bold mb-1">
-                    ₩{(cryptoAssetData.totalAssets * 0.1).toLocaleString()}
+                    ₩{Math.round(cryptoAssetData.totalAssets * 0.1).toLocaleString()}
                   </div>
                   <div className="text-sm text-gray-500">추정 (10%)</div>
                 </div>
@@ -638,7 +638,7 @@ export default function DashboardHome() {
                     cryptoAssetData.totalProfitLoss < 0 ? 'text-blue-400' :
                     'text-white'
                   }`}>
-                    {cryptoAssetData.totalProfitLoss > 0 ? '+' : ''}₩{cryptoAssetData.totalProfitLoss.toLocaleString()}
+                    {cryptoAssetData.totalProfitLoss > 0 ? '+' : ''}₩{Math.round(cryptoAssetData.totalProfitLoss).toLocaleString()}
                   </div>
                   <div className="text-sm text-gray-500">평가손익</div>
                 </div>
@@ -792,20 +792,20 @@ export default function DashboardHome() {
                         {holding.quantity.toLocaleString()}{holding.market === 'stock' ? '주' : ''}
                       </td>
                       <td className="py-3 px-2 text-right font-semibold">
-                        ₩{holding.currentPrice.toLocaleString()}
+                        ₩{Math.round(holding.currentPrice).toLocaleString()}
                       </td>
                       <td className="py-3 px-2 text-right">
                         ₩{Math.round(holding.avgPrice).toLocaleString()}
                       </td>
                       <td className="py-3 px-2 text-right font-semibold">
-                        ₩{holding.totalValue.toLocaleString()}
+                        ₩{Math.round(holding.totalValue).toLocaleString()}
                       </td>
                       <td className={`py-3 px-2 text-right font-semibold ${
                         holding.profitLoss > 0 ? 'text-red-400' :
                         holding.profitLoss < 0 ? 'text-blue-400' :
                         'text-white'
                       }`}>
-                        {holding.profitLoss > 0 ? '+' : ''}₩{holding.profitLoss.toLocaleString()}
+                        {holding.profitLoss > 0 ? '+' : ''}₩{Math.round(holding.profitLoss).toLocaleString()}
                       </td>
                       <td className={`py-3 px-2 text-right font-semibold ${
                         holding.profitLossPercent > 0 ? 'text-red-400' :
@@ -959,10 +959,10 @@ export default function DashboardHome() {
                       {trade.quantity.toLocaleString()}{trade.market === 'stock' ? '주' : ''}
                     </td>
                     <td className="py-3 px-2 text-right font-semibold">
-                      ₩{trade.price.toLocaleString()}
+                      ₩{Math.round(trade.price).toLocaleString()}
                     </td>
                     <td className="py-3 px-2 text-right font-semibold">
-                      ₩{trade.totalAmount.toLocaleString()}
+                      ₩{Math.round(trade.totalAmount).toLocaleString()}
                     </td>
                     <td className="py-3 px-2 text-center">
                       <span className={`text-xs px-2 py-1 rounded ${
@@ -1047,13 +1047,13 @@ export default function DashboardHome() {
                   <div>
                     <div className="text-sm text-gray-400">체결 단가</div>
                     <div className="text-xl font-bold">
-                      ₩{selectedTrade.price.toLocaleString()}
+                      ₩{Math.round(selectedTrade.price).toLocaleString()}
                     </div>
                   </div>
                   <div>
                     <div className="text-sm text-gray-400">체결 금액</div>
                     <div className="text-xl font-bold text-blue-400">
-                      ₩{selectedTrade.totalAmount.toLocaleString()}
+                      ₩{Math.round(selectedTrade.totalAmount).toLocaleString()}
                     </div>
                   </div>
                   <div>
@@ -1130,7 +1130,7 @@ export default function DashboardHome() {
                   <div>
                     <div className="text-sm text-gray-400">거래 수수료</div>
                     <div className="font-semibold text-red-400">
-                      ₩{selectedTrade.fee.toLocaleString()}
+                      ₩{Math.round(selectedTrade.fee).toLocaleString()}
                     </div>
                   </div>
                 </div>
