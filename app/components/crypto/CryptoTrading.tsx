@@ -83,6 +83,22 @@ export default function CryptoTrading() {
     loadStrategyTrades();
   }, []);
 
+  // ESC 키로 모달 닫기
+  useEffect(() => {
+    const handleEscKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        if (showCreateModal) {
+          setShowCreateModal(false);
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleEscKey);
+    return () => {
+      document.removeEventListener('keydown', handleEscKey);
+    };
+  }, [showCreateModal]);
+
   const loadStrategies = async () => {
     try {
       const response = await fetch('/api/crypto/strategies');
@@ -183,7 +199,7 @@ export default function CryptoTrading() {
     }
   };
 
-  const filteredTrades = selectedStrategy 
+  const filteredTrades = selectedStrategy
     ? strategyTrades.filter(trade => trade.strategyId === selectedStrategy)
     : strategyTrades;
 
@@ -251,8 +267,8 @@ export default function CryptoTrading() {
                       <h4 className="font-semibold text-lg">{strategy.name}</h4>
                       <span className="text-sm text-gray-400">({strategy.market})</span>
                       <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                        strategy.isActive 
-                          ? 'bg-green-900/50 text-green-400' 
+                        strategy.isActive
+                          ? 'bg-green-900/50 text-green-400'
                           : 'bg-gray-700 text-gray-400'
                       }`}>
                         {strategy.isActive ? '실행 중' : '중지됨'}
@@ -366,8 +382,8 @@ export default function CryptoTrading() {
                     </td>
                     <td className="py-3 px-2 text-center">
                       <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                        trade.status === 'completed' 
-                          ? 'bg-green-900/50 text-green-400' 
+                        trade.status === 'completed'
+                          ? 'bg-green-900/50 text-green-400'
                           : 'bg-red-900/50 text-red-400'
                       }`}>
                         {trade.status === 'completed' ? '성공' : '실패'}
@@ -387,7 +403,15 @@ export default function CryptoTrading() {
 
       {/* 전략 생성 모달 */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          onClick={(e) => {
+            // 모달 외부 클릭 시 닫기
+            if (e.target === e.currentTarget) {
+              setShowCreateModal(false);
+            }
+          }}
+        >
           <div className="bg-gray-800 rounded-lg shadow-xl w-full max-w-4xl border border-gray-700 max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-700">
               <div className="flex items-center justify-between">
@@ -407,7 +431,7 @@ export default function CryptoTrading() {
                   <div key={index} className="bg-gray-700/50 rounded-lg p-4 border border-gray-600">
                     <h4 className="font-semibold text-lg mb-2">{template.name}</h4>
                     <p className="text-gray-400 text-sm mb-4">{template.description}</p>
-                    
+
                     <div className="space-y-2 mb-4">
                       <h5 className="text-sm font-semibold text-gray-300">매개변수:</h5>
                       <div className="text-xs text-gray-400 space-y-1">

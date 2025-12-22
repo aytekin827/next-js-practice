@@ -87,8 +87,8 @@ export default function DashboardHome() {
   const [tradeModalOpen, setTradeModalOpen] = useState(false);
 
   // 보유종목 테이블 정렬 상태
-  type HoldingSortField = 'market' | 'name' | 'symbol' | 'quantity' | 'currentPrice' | 'avgPrice' | 'totalValue' | 'profitLoss' | 'profitLossPercent';
-  type TradeSortField = 'market' | 'name' | 'symbol' | 'type' | 'quantity' | 'price' | 'totalAmount' | 'timestamp' | 'status';
+  type HoldingSortField = 'market' | 'name' | 'quantity' | 'currentPrice' | 'avgPrice' | 'totalValue' | 'profitLoss' | 'profitLossPercent';
+  type TradeSortField = 'market' | 'name' | 'type' | 'quantity' | 'price' | 'totalAmount' | 'timestamp' | 'status';
   type SortDirection = 'asc' | 'desc';
 
   const [holdingSortField, setHoldingSortField] = useState<HoldingSortField>('name');
@@ -249,7 +249,7 @@ export default function DashboardHome() {
       const stockResponse = await fetch('/api/holdings');
       const stockData = await stockResponse.json();
 
-      const stockHoldings = Array.isArray(stockData) 
+      const stockHoldings = Array.isArray(stockData)
         ? stockData.map(holding => ({ ...holding, market: 'stock' as const }))
         : [];
 
@@ -312,7 +312,7 @@ export default function DashboardHome() {
             price: trade.executedPrice || trade.price,
             totalAmount: (trade.executedVolume || trade.volume) * (trade.executedPrice || trade.price),
             timestamp: trade.executedTime || trade.orderTime,
-            status: trade.status === 'completed' ? 'completed' as const : 
+            status: trade.status === 'completed' ? 'completed' as const :
                     trade.status === 'partial' ? 'partial' as const : 'pending' as const,
             orderNumber: trade.upbitOrderId || trade.id,
             orderQuantity: trade.volume,
@@ -422,6 +422,22 @@ export default function DashboardHome() {
     return () => clearInterval(dataInterval);
   }, [loadHoldings, refreshInterval]);
 
+  // ESC 키로 모달 닫기
+  useEffect(() => {
+    const handleEscKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        if (tradeModalOpen) {
+          closeTradeModal();
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleEscKey);
+    return () => {
+      document.removeEventListener('keydown', handleEscKey);
+    };
+  }, [tradeModalOpen]);
+
   return (
     <div className="p-6 space-y-6">
       {/* 헤더와 필터 */}
@@ -430,7 +446,7 @@ export default function DashboardHome() {
           <h1 className="text-2xl font-bold">🏠 통합 대시보드</h1>
           <p className="text-gray-400 mt-1">주식 & 코인 통합 포트폴리오</p>
         </div>
-        
+
         <div className="flex items-center gap-4">
           {/* 시장 필터 */}
           <div className="flex items-center gap-2">
@@ -492,7 +508,7 @@ export default function DashboardHome() {
                 </div>
               ))}
             </div>
-            
+
             {/* 2행: 주식 관련 */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {[1, 2, 3, 4].map((i) => (
@@ -503,7 +519,7 @@ export default function DashboardHome() {
                 </div>
               ))}
             </div>
-            
+
             {/* 3행: 코인 관련 */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {[1, 2, 3, 4].map((i) => (
@@ -647,7 +663,7 @@ export default function DashboardHome() {
       {/* 보유 종목 - 전체 너비 */}
       <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
           <h2 className="text-lg font-semibold mb-4">
-            📊 보유 종목 
+            📊 보유 종목
             {marketFilter !== 'all' && (
               <span className="text-sm text-gray-400 ml-2">
                 ({marketFilter === 'stock' ? '주식' : '코인'})
@@ -676,7 +692,7 @@ export default function DashboardHome() {
               </div>
             ) : filteredHoldings.length === 0 ? (
               <div className="text-center text-gray-400 py-8">
-                {marketFilter === 'all' ? '보유 종목이 없습니다' : 
+                {marketFilter === 'all' ? '보유 종목이 없습니다' :
                  marketFilter === 'stock' ? '보유 주식이 없습니다' : '보유 코인이 없습니다'}
               </div>
             ) : (
@@ -699,14 +715,6 @@ export default function DashboardHome() {
                     >
                       <div className="flex items-center gap-1">
                         종목명 <HoldingSortIcon field="name" />
-                      </div>
-                    </th>
-                    <th
-                      className="text-left py-3 px-2 cursor-pointer hover:bg-gray-700 transition-colors"
-                      onClick={() => handleHoldingSort('symbol')}
-                    >
-                      <div className="flex items-center gap-1">
-                        코드 <HoldingSortIcon field="symbol" />
                       </div>
                     </th>
                     <th
@@ -775,10 +783,10 @@ export default function DashboardHome() {
                         </td>
                       )}
                       <td className="py-3 px-2">
-                        <div className="font-semibold">{holding.name}</div>
-                      </td>
-                      <td className="py-3 px-2 text-gray-400">
-                        {holding.symbol}
+                        <div>
+                          <div className="font-semibold">{holding.name}</div>
+                          <div className="text-xs text-gray-400">{holding.symbol}</div>
+                        </div>
                       </td>
                       <td className="py-3 px-2 text-right">
                         {holding.quantity.toLocaleString()}{holding.market === 'stock' ? '주' : ''}
@@ -877,14 +885,6 @@ export default function DashboardHome() {
                     </div>
                   </th>
                   <th
-                    className="text-left py-3 px-2 cursor-pointer hover:bg-gray-700 transition-colors"
-                    onClick={() => handleTradeSort('symbol')}
-                  >
-                    <div className="flex items-center gap-1">
-                      코드 <TradeSortIcon field="symbol" />
-                    </div>
-                  </th>
-                  <th
                     className="text-right py-3 px-2 cursor-pointer hover:bg-gray-700 transition-colors"
                     onClick={() => handleTradeSort('quantity')}
                   >
@@ -950,10 +950,10 @@ export default function DashboardHome() {
                       </span>
                     </td>
                     <td className="py-3 px-2">
-                      <div className="font-semibold">{trade.name}</div>
-                    </td>
-                    <td className="py-3 px-2 text-gray-400">
-                      {trade.symbol}
+                      <div>
+                        <div className="font-semibold">{trade.name}</div>
+                        <div className="text-xs text-gray-400">{trade.symbol}</div>
+                      </div>
                     </td>
                     <td className="py-3 px-2 text-right">
                       {trade.quantity.toLocaleString()}{trade.market === 'stock' ? '주' : ''}
@@ -988,7 +988,15 @@ export default function DashboardHome() {
 
       {/* 거래 상세 모달 */}
       {tradeModalOpen && selectedTrade && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          onClick={(e) => {
+            // 모달 외부 클릭 시 닫기
+            if (e.target === e.currentTarget) {
+              closeTradeModal();
+            }
+          }}
+        >
           <div className="bg-gray-800 rounded-lg shadow-xl w-full max-w-2xl border border-gray-700 max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-700">
               <div className="flex items-center justify-between">

@@ -25,6 +25,9 @@ interface TradingSettings {
   cryptoMaxInvestmentPercent: number;
   cryptoStopLossPercent: number;
   cryptoProfitTakingPercent: number;
+  // 매수가 할인율 설정
+  defaultDiscountPercent: number;
+  quantumDefaultDiscountPercent: number;
 }
 
 export default function TradingSettings() {
@@ -50,7 +53,10 @@ export default function TradingSettings() {
     cryptoEnabled: false,
     cryptoMaxInvestmentPercent: 10.0,
     cryptoStopLossPercent: 5.0,
-    cryptoProfitTakingPercent: 10.0
+    cryptoProfitTakingPercent: 10.0,
+    // 매수가 할인율 기본값
+    defaultDiscountPercent: 1.0,
+    quantumDefaultDiscountPercent: 1.0
   });
 
   const [loading, setLoading] = useState(true);
@@ -136,7 +142,10 @@ export default function TradingSettings() {
       cryptoEnabled: false,
       cryptoMaxInvestmentPercent: 10.0,
       cryptoStopLossPercent: 5.0,
-      cryptoProfitTakingPercent: 10.0
+      cryptoProfitTakingPercent: 10.0,
+      // 매수가 할인율 기본값
+      defaultDiscountPercent: 1.0,
+      quantumDefaultDiscountPercent: 1.0
     });
     setMessage(null);
   };
@@ -218,63 +227,27 @@ export default function TradingSettings() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
               {/* 손절/익절 설정 */}
               <div className="bg-gray-700/50 rounded-lg p-4">
-                <h3 className="text-md font-semibold mb-4 text-gray-200">💰 손절/익절 설정</h3>
+                <h3 className="text-md font-semibold mb-4 text-gray-200">💰 매수 설정</h3>
                 <div className="space-y-4">
-                  {/* 손절가 활성화 토글 */}
-                  <div className="bg-gray-600/50 rounded p-3 border border-gray-500">
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="text-sm text-gray-300 font-medium">기본 손절가 사용</label>
-                      <button
-                        onClick={() => setSettings(prev => ({ ...prev, defaultStopLossEnabled: !prev.defaultStopLossEnabled }))}
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                          settings.defaultStopLossEnabled ? 'bg-blue-600' : 'bg-gray-400'
-                        }`}
-                      >
-                        <span
-                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                            settings.defaultStopLossEnabled ? 'translate-x-6' : 'translate-x-1'
-                          }`}
-                        />
-                      </button>
-                    </div>
-                    <div className="text-xs text-gray-400">
-                      활성화 시 매수와 동시에 손절 주문이 자동으로 설정됩니다
-                    </div>
-                  </div>
-
-                  <div className={`${!settings.defaultStopLossEnabled ? 'opacity-50' : ''}`}>
-                    <label className="block text-sm text-gray-400 mb-2">기본 손절 퍼센트 (%)</label>
-                    <input
-                      type="number"
-                      value={settings.defaultStopLossPercent}
-                      onChange={(e) => setSettings(prev => ({
-                        ...prev,
-                        defaultStopLossPercent: parseFloat(e.target.value) || 0
-                      }))}
-                      disabled={!settings.defaultStopLossEnabled}
-                      step="0.1"
-                      min="0"
-                      max="50"
-                      className="w-full bg-gray-600 border border-gray-500 rounded px-3 py-2 text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                    />
-                    <div className="text-xs text-gray-500 mt-1">매수가 대비 하락 시 자동 매도할 퍼센트</div>
-                  </div>
-
+                  {/* 매수가 할인율 설정 */}
                   <div>
-                    <label className="block text-sm text-gray-400 mb-2">기본 익절 퍼센트 (%)</label>
+                    <label className="block text-sm text-gray-400 mb-2">기본 매수가 할인율 (%)</label>
                     <input
                       type="number"
-                      value={settings.defaultProfitPercent}
+                      value={settings.defaultDiscountPercent}
                       onChange={(e) => setSettings(prev => ({
                         ...prev,
-                        defaultProfitPercent: parseFloat(e.target.value) || 0
+                        defaultDiscountPercent: parseFloat(e.target.value) || 0
                       }))}
                       step="0.1"
                       min="0"
-                      max="50"
+                      max="10"
                       className="w-full bg-gray-600 border border-gray-500 rounded px-3 py-2 text-white"
                     />
-                    <div className="text-xs text-gray-500 mt-1">매수가 대비 상승 시 자동 매도할 퍼센트</div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      현재가 대비 할인하여 매수가를 설정하는 비율<br/>
+                      예: 1% 설정 시 현재가 10,000원 → 매수가 9,900원
+                    </div>
                   </div>
                 </div>
               </div>
@@ -436,63 +409,27 @@ export default function TradingSettings() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
               {/* 손절/익절 설정 */}
               <div className="bg-gray-700/50 rounded-lg p-4">
-                <h3 className="text-md font-semibold mb-4 text-gray-200">💰 손절/익절 설정</h3>
+                <h3 className="text-md font-semibold mb-4 text-gray-200">💰 매수/손절/익절 설정</h3>
                 <div className="space-y-4">
-                  {/* 손절가 활성화 토글 */}
-                  <div className="bg-gray-600/50 rounded p-3 border border-gray-500">
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="text-sm text-gray-300 font-medium">퀀트 기본 손절가 사용</label>
-                      <button
-                        onClick={() => setSettings(prev => ({ ...prev, quantumDefaultStopLossEnabled: !prev.quantumDefaultStopLossEnabled }))}
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                          settings.quantumDefaultStopLossEnabled ? 'bg-blue-600' : 'bg-gray-400'
-                        }`}
-                      >
-                        <span
-                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                            settings.quantumDefaultStopLossEnabled ? 'translate-x-6' : 'translate-x-1'
-                          }`}
-                        />
-                      </button>
-                    </div>
-                    <div className="text-xs text-gray-400">
-                      활성화 시 퀀트 종목 매수와 동시에 손절 주문이 자동으로 설정됩니다
-                    </div>
-                  </div>
-
-                  <div className={`${!settings.quantumDefaultStopLossEnabled ? 'opacity-50' : ''}`}>
-                    <label className="block text-sm text-gray-400 mb-2">퀀트 기본 손절 퍼센트 (%)</label>
-                    <input
-                      type="number"
-                      value={settings.quantumDefaultStopLossPercent}
-                      onChange={(e) => setSettings(prev => ({
-                        ...prev,
-                        quantumDefaultStopLossPercent: parseFloat(e.target.value) || 0
-                      }))}
-                      disabled={!settings.quantumDefaultStopLossEnabled}
-                      step="0.1"
-                      min="0"
-                      max="50"
-                      className="w-full bg-gray-600 border border-gray-500 rounded px-3 py-2 text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                    />
-                    <div className="text-xs text-gray-500 mt-1">퀀트 종목 매수가 대비 하락 시 자동 매도할 퍼센트</div>
-                  </div>
-
+                  {/* 매수가 할인율 설정 */}
                   <div>
-                    <label className="block text-sm text-gray-400 mb-2">퀀트 기본 익절 퍼센트 (%)</label>
+                    <label className="block text-sm text-gray-400 mb-2">퀀트 기본 매수가 할인율 (%)</label>
                     <input
                       type="number"
-                      value={settings.quantumDefaultProfitPercent}
+                      value={settings.quantumDefaultDiscountPercent}
                       onChange={(e) => setSettings(prev => ({
                         ...prev,
-                        quantumDefaultProfitPercent: parseFloat(e.target.value) || 0
+                        quantumDefaultDiscountPercent: parseFloat(e.target.value) || 0
                       }))}
                       step="0.1"
                       min="0"
-                      max="50"
+                      max="10"
                       className="w-full bg-gray-600 border border-gray-500 rounded px-3 py-2 text-white"
                     />
-                    <div className="text-xs text-gray-500 mt-1">퀀트 종목 매수가 대비 상승 시 자동 매도할 퍼센트</div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      퀀트 종목 종가 대비 할인하여 매수가를 설정하는 비율<br/>
+                      예: 1% 설정 시 종가 10,000원 → 매수가 9,900원
+                    </div>
                   </div>
                 </div>
               </div>

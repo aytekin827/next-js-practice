@@ -57,8 +57,8 @@ export default function StockSell() {
   const [sellProfitPercent, setSellProfitPercent] = useState(3.0);
 
   // 보유종목 테이블 정렬 상태
-  type HoldingSortField = 'name' | 'symbol' | 'quantity' | 'avgPrice' | 'currentPrice' | 'totalValue' | 'profitLoss' | 'profitLossPercent';
-  type OrderSortField = 'name' | 'symbol' | 'quantity' | 'sellPrice' | 'orderTime' | 'status';
+  type HoldingSortField = 'name' | 'quantity' | 'avgPrice' | 'currentPrice' | 'totalValue' | 'profitLoss' | 'profitLossPercent';
+  type OrderSortField = 'name' | 'quantity' | 'sellPrice' | 'orderTime' | 'status';
   type SortDirection = 'asc' | 'desc';
 
   const [holdingSortField, setHoldingSortField] = useState<HoldingSortField>('name');
@@ -178,6 +178,31 @@ export default function StockSell() {
   useEffect(() => {
     loadData();
   }, []);
+
+  // ESC 키로 모달 닫기
+  useEffect(() => {
+    const handleEscKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        if (sellModalOpen) {
+          setSellModalOpen(false);
+          setSellModalData(null);
+        }
+        if (bulkSellModalOpen) {
+          setBulkSellModalOpen(false);
+          setBulkSellModalData(null);
+        }
+        if (editOrderModalOpen) {
+          setEditOrderModalOpen(false);
+          setEditingOrder(null);
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleEscKey);
+    return () => {
+      document.removeEventListener('keydown', handleEscKey);
+    };
+  }, [sellModalOpen, bulkSellModalOpen, editOrderModalOpen]);
 
   const loadData = async () => {
     try {
@@ -493,14 +518,6 @@ export default function StockSell() {
                       </div>
                     </th>
                     <th
-                      className="text-left py-3 px-2 cursor-pointer hover:bg-gray-700 transition-colors"
-                      onClick={() => handleHoldingSort('symbol')}
-                    >
-                      <div className="flex items-center gap-1">
-                        코드 <HoldingSortIcon field="symbol" />
-                      </div>
-                    </th>
-                    <th
                       className="text-right py-3 px-2 cursor-pointer hover:bg-gray-700 transition-colors"
                       onClick={() => handleHoldingSort('quantity')}
                     >
@@ -564,13 +581,13 @@ export default function StockSell() {
                       }`}
                     >
                       <td className="py-3 px-2">
-                        <div className="font-semibold">{stock.name}</div>
-                        {!canSell && (
-                          <div className="text-xs text-yellow-400">매도 주문 대기 중</div>
-                        )}
-                      </td>
-                      <td className="py-3 px-2 text-gray-400">
-                        {stock.symbol}
+                        <div>
+                          <div className="font-semibold">{stock.name}</div>
+                          <div className="text-xs text-gray-400">{stock.symbol}</div>
+                          {!canSell && (
+                            <div className="text-xs text-yellow-400">매도 주문 대기 중</div>
+                          )}
+                        </div>
                       </td>
                       <td className="py-3 px-2 text-right">
                         <div className={`font-semibold ${canSell ? 'text-green-400' : 'text-gray-500'}`}>
@@ -651,14 +668,6 @@ export default function StockSell() {
                       </div>
                     </th>
                     <th
-                      className="text-left py-3 px-2 cursor-pointer hover:bg-gray-700 transition-colors"
-                      onClick={() => handleOrderSort('symbol')}
-                    >
-                      <div className="flex items-center gap-1">
-                        코드 <OrderSortIcon field="symbol" />
-                      </div>
-                    </th>
-                    <th
                       className="text-right py-3 px-2 cursor-pointer hover:bg-gray-700 transition-colors"
                       onClick={() => handleOrderSort('quantity')}
                     >
@@ -702,10 +711,10 @@ export default function StockSell() {
                       className="border-b border-gray-700 hover:bg-gray-700/50 transition-colors"
                     >
                       <td className="py-3 px-2">
-                        <div className="font-semibold">{order.name}</div>
-                      </td>
-                      <td className="py-3 px-2 text-gray-400">
-                        {order.symbol}
+                        <div>
+                          <div className="font-semibold">{order.name}</div>
+                          <div className="text-xs text-gray-400">{order.symbol}</div>
+                        </div>
                       </td>
                       <td className="py-3 px-2 text-right">
                         <div className="font-semibold">
@@ -771,7 +780,16 @@ export default function StockSell() {
 
       {/* 개별 매도 모달 */}
       {sellModalOpen && sellModalData && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={(e) => {
+            // 모달 외부 클릭 시 닫기
+            if (e.target === e.currentTarget) {
+              setSellModalOpen(false);
+              setSellModalData(null);
+            }
+          }}
+        >
           <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md border border-gray-700">
             <h3 className="text-lg font-semibold mb-4">매도 주문</h3>
 
@@ -888,7 +906,16 @@ export default function StockSell() {
 
       {/* 일괄 매도 모달 */}
       {bulkSellModalOpen && bulkSellModalData && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={(e) => {
+            // 모달 외부 클릭 시 닫기
+            if (e.target === e.currentTarget) {
+              setBulkSellModalOpen(false);
+              setBulkSellModalData(null);
+            }
+          }}
+        >
           <div className="bg-gray-800 rounded-lg p-6 w-full max-w-4xl max-h-[80vh] overflow-y-auto border border-gray-700">
             <h3 className="text-lg font-semibold mb-4">일괄 매도 주문</h3>
 
@@ -1002,7 +1029,16 @@ export default function StockSell() {
 
       {/* 매도 주문 수정 모달 */}
       {editOrderModalOpen && editingOrder && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={(e) => {
+            // 모달 외부 클릭 시 닫기
+            if (e.target === e.currentTarget) {
+              setEditOrderModalOpen(false);
+              setEditingOrder(null);
+            }
+          }}
+        >
           <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md border border-gray-700">
             <h3 className="text-lg font-semibold mb-4">매도 주문 수정</h3>
 

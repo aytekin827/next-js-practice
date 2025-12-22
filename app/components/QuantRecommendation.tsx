@@ -494,6 +494,25 @@ export default function QuantRecommendation() {
     setBulkBuyModalOpen(false);
   };
 
+  // ESC 키로 모달 닫기
+  useEffect(() => {
+    const handleEscKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        if (buyModalOpen) {
+          setBuyModalOpen(false);
+        }
+        if (bulkBuyModalOpen) {
+          setBulkBuyModalOpen(false);
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleEscKey);
+    return () => {
+      document.removeEventListener('keydown', handleEscKey);
+    };
+  }, [buyModalOpen, bulkBuyModalOpen]);
+
   return (
     <div className="p-6 space-y-6">
       {/* 전략 선택 섹션 */}
@@ -1016,7 +1035,15 @@ export default function QuantRecommendation() {
 
       {/* 매수 모달 */}
       {buyModalOpen && selectedStock && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          onClick={(e) => {
+            // 모달 외부 클릭 시 닫기
+            if (e.target === e.currentTarget) {
+              setBuyModalOpen(false);
+            }
+          }}
+        >
           <div className="bg-gray-800 rounded-lg shadow-xl w-full max-w-md border border-gray-700">
             <div className="p-6 border-b border-gray-700">
               <div className="flex items-center justify-between">
@@ -1225,7 +1252,15 @@ export default function QuantRecommendation() {
 
       {/* 일괄매수 모달 */}
       {bulkBuyModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          onClick={(e) => {
+            // 모달 외부 클릭 시 닫기
+            if (e.target === e.currentTarget) {
+              setBulkBuyModalOpen(false);
+            }
+          }}
+        >
           <div className="bg-gray-800 rounded-lg shadow-xl w-full max-w-6xl border border-gray-700 max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-700">
               <div className="flex items-center justify-between">
