@@ -17,6 +17,7 @@ warnings.filterwarnings("ignore", category=FutureWarning, module="pykrx")
 import pandas as pd
 
 from quant_config import UNIVERSE_SIZE_PER_MARKET, TOP_N_TO_SHOW, MIN_TRADING_VALUE, MIN_VOLUME_SHARES, MAX_PRICE_PER_SHARE, MIN_MARKET_CAP_WON
+from upload_to_supabase import upload_and_insert
 
 # 방어 코드: 구버전 설정 파일에서 상수가 없을 수 있어 기본값을 둔다.
 try:
@@ -356,7 +357,7 @@ def main():
     df = enrich_table(df_raw)
 
     run_all_strategies(df, as_of, timestamp)
-
+    upload_and_insert()
     # select_strategy(df, as_of, timestamp)
 
 
