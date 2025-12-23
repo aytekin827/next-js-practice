@@ -9,8 +9,7 @@ import StockAnalysis from './components/StockAnalysis';
 import QuantRecommendation from './components/QuantRecommendation';
 import TradingSettings from './components/TradingSettings';
 import StockSell from './components/StockSell';
-import CryptoAnalysis from './components/crypto/CryptoAnalysis';
-import CryptoTrading from './components/crypto/CryptoTrading';
+import CryptoBotControl from './components/CryptoBotControl';
 
 interface User {
   id: string;
@@ -20,7 +19,7 @@ interface User {
 export default function TradingDashboard() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [currentPage, setCurrentPage] = useState<'dashboard' | 'analysis' | 'quantum-recommendation' | 'stock-sell' | 'crypto-analysis' | 'crypto-trading' | 'settings'>('dashboard');
+  const [currentPage, setCurrentPage] = useState<'dashboard' | 'analysis' | 'quantum-recommendation' | 'stock-sell' | 'crypto-bot' | 'settings'>('dashboard');
 
   const supabase = createClient();
 
@@ -66,8 +65,7 @@ export default function TradingDashboard() {
       {currentPage === 'analysis' && <StockAnalysis />}
       {currentPage === 'quantum-recommendation' && <QuantRecommendation />}
       {currentPage === 'stock-sell' && <StockSell />}
-      {currentPage === 'crypto-analysis' && <CryptoAnalysis />}
-      {currentPage === 'crypto-trading' && <CryptoTrading />}
+      {currentPage === 'crypto-bot' && <CryptoBotControl />}
       {currentPage === 'settings' && <TradingSettings />}
     </DashboardLayout>
   );

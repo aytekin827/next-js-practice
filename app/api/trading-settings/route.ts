@@ -19,11 +19,6 @@ export interface TradingSettings {
   quantumDefaultStopLossEnabled: boolean;
   // 매도 관련 설정
   sellProfitPercent: number;
-  // 코인 자동매매 설정
-  cryptoEnabled: boolean;
-  cryptoMaxInvestmentPercent: number;
-  cryptoStopLossPercent: number;
-  cryptoProfitTakingPercent: number;
   // 매수가 할인율 설정
   defaultDiscountPercent: number;
   quantumDefaultDiscountPercent: number;
@@ -48,11 +43,6 @@ const DEFAULT_SETTINGS: TradingSettings = {
   quantumDefaultStopLossEnabled: true,
   // 매도 관련 기본값
   sellProfitPercent: 3.0,
-  // 코인 자동매매 기본값
-  cryptoEnabled: false,
-  cryptoMaxInvestmentPercent: 10.0,
-  cryptoStopLossPercent: 5.0,
-  cryptoProfitTakingPercent: 10.0,
   // 매수가 할인율 기본값
   defaultDiscountPercent: 1.0,
   quantumDefaultDiscountPercent: 1.0
@@ -106,11 +96,6 @@ export async function GET(request: NextRequest) {
       quantumDefaultStopLossEnabled: data.quantum_default_stop_loss_enabled !== undefined ? data.quantum_default_stop_loss_enabled : DEFAULT_SETTINGS.quantumDefaultStopLossEnabled,
       // 매도 관련 설정
       sellProfitPercent: parseFloat(data.sell_profit_percent) || DEFAULT_SETTINGS.sellProfitPercent,
-      // 코인 자동매매 설정
-      cryptoEnabled: data.crypto_enabled !== undefined ? data.crypto_enabled : DEFAULT_SETTINGS.cryptoEnabled,
-      cryptoMaxInvestmentPercent: parseFloat(data.crypto_max_investment_percent) || DEFAULT_SETTINGS.cryptoMaxInvestmentPercent,
-      cryptoStopLossPercent: parseFloat(data.crypto_stop_loss_percent) || DEFAULT_SETTINGS.cryptoStopLossPercent,
-      cryptoProfitTakingPercent: parseFloat(data.crypto_profit_taking_percent) || DEFAULT_SETTINGS.cryptoProfitTakingPercent,
       // 매수가 할인율 설정
       defaultDiscountPercent: parseFloat(data.default_discount_percent) || DEFAULT_SETTINGS.defaultDiscountPercent,
       quantumDefaultDiscountPercent: parseFloat(data.quantum_default_discount_percent) || DEFAULT_SETTINGS.quantumDefaultDiscountPercent
@@ -173,11 +158,6 @@ export async function POST(request: NextRequest) {
       quantum_default_stop_loss_enabled: settings.quantumDefaultStopLossEnabled,
       // 매도 관련 설정
       sell_profit_percent: settings.sellProfitPercent,
-      // 코인 자동매매 설정
-      crypto_enabled: settings.cryptoEnabled,
-      crypto_max_investment_percent: settings.cryptoMaxInvestmentPercent,
-      crypto_stop_loss_percent: settings.cryptoStopLossPercent,
-      crypto_profit_taking_percent: settings.cryptoProfitTakingPercent,
       // 매수가 할인율 설정
       default_discount_percent: settings.defaultDiscountPercent,
       quantum_default_discount_percent: settings.quantumDefaultDiscountPercent,

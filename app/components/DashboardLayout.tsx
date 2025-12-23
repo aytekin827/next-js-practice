@@ -11,8 +11,8 @@ interface User {
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
-  currentPage: 'dashboard' | 'analysis' | 'quantum-recommendation' | 'stock-sell' | 'crypto-analysis' | 'crypto-trading' | 'settings';
-  onPageChange: (page: 'dashboard' | 'analysis' | 'quantum-recommendation' | 'stock-sell' | 'crypto-analysis' | 'crypto-trading' | 'settings') => void;
+  currentPage: 'dashboard' | 'analysis' | 'quantum-recommendation' | 'stock-sell' | 'crypto-bot' | 'settings';
+  onPageChange: (page: 'dashboard' | 'analysis' | 'quantum-recommendation' | 'stock-sell' | 'crypto-bot' | 'settings') => void;
 }
 
 export default function DashboardLayout({ children, currentPage, onPageChange }: DashboardLayoutProps) {
@@ -136,16 +136,10 @@ export default function DashboardLayout({ children, currentPage, onPageChange }:
       description: '보유 주식 매도 및 주문 관리'
     },
     {
-      id: 'crypto-analysis' as const,
-      name: '코인시장 분석',
-      icon: '📊',
-      description: '암호화폐 시장 분석 도구'
-    },
-    {
-      id: 'crypto-trading' as const,
-      name: '코인 자동매매',
-      icon: '₿',
-      description: '암호화폐 자동매매 전략 관리'
+      id: 'crypto-bot' as const,
+      name: '코인 자동매매 봇',
+      icon: '🤖',
+      description: '외부 자동매매 봇 제어'
     },
     {
       id: 'settings' as const,

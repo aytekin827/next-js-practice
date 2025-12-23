@@ -20,11 +20,6 @@ interface TradingSettings {
   quantumDefaultStopLossEnabled: boolean;
   // 매도 관련 설정
   sellProfitPercent: number;
-  // 코인 자동매매 설정
-  cryptoEnabled: boolean;
-  cryptoMaxInvestmentPercent: number;
-  cryptoStopLossPercent: number;
-  cryptoProfitTakingPercent: number;
   // 매수가 할인율 설정
   defaultDiscountPercent: number;
   quantumDefaultDiscountPercent: number;
@@ -49,11 +44,6 @@ export default function TradingSettings() {
     quantumDefaultStopLossEnabled: true,
     // 매도 관련 기본값
     sellProfitPercent: 3.0,
-    // 코인 자동매매 기본값
-    cryptoEnabled: false,
-    cryptoMaxInvestmentPercent: 10.0,
-    cryptoStopLossPercent: 5.0,
-    cryptoProfitTakingPercent: 10.0,
     // 매수가 할인율 기본값
     defaultDiscountPercent: 1.0,
     quantumDefaultDiscountPercent: 1.0
@@ -67,7 +57,6 @@ export default function TradingSettings() {
   const [expandedSections, setExpandedSections] = useState({
     gapBreakout: true,
     quantum: true,
-    crypto: true,
     sell: true
   });
 
@@ -140,11 +129,6 @@ export default function TradingSettings() {
       quantumDefaultStopLossEnabled: true,
       // 매도 관련 기본값
       sellProfitPercent: 3.0,
-      // 코인 자동매매 기본값
-      cryptoEnabled: false,
-      cryptoMaxInvestmentPercent: 10.0,
-      cryptoStopLossPercent: 5.0,
-      cryptoProfitTakingPercent: 10.0,
       // 매수가 할인율 기본값
       defaultDiscountPercent: 1.0,
       quantumDefaultDiscountPercent: 1.0
@@ -153,7 +137,7 @@ export default function TradingSettings() {
   };
 
   // 섹션 토글 함수
-  const toggleSection = (section: 'gapBreakout' | 'quantum' | 'crypto' | 'sell') => {
+  const toggleSection = (section: 'gapBreakout' | 'quantum' | 'sell') => {
     setExpandedSections(prev => ({
       ...prev,
       [section]: !prev[section]
@@ -456,121 +440,6 @@ export default function TradingSettings() {
                   <div className="text-xs text-gray-500 mt-1">
                     퀀트 일괄매수 시 종목당 최대 투자 금액<br/>
                     현재 설정: ₩{settings.quantumMaxAmountPerStock.toLocaleString()}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* 코인 자동매매 설정 */}
-      <div className="bg-gray-800 rounded-lg border border-gray-700">
-        <div
-          className="p-6 cursor-pointer hover:bg-gray-700/30 transition-colors"
-          onClick={() => toggleSection('crypto')}
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <span className="text-2xl">₿</span>
-              <div>
-                <h2 className="text-lg font-semibold">코인 자동매매 설정</h2>
-                <p className="text-sm text-gray-400">암호화폐 자동매매에서 사용되는 기본 설정값</p>
-              </div>
-            </div>
-            <div className={`transform transition-transform ${expandedSections.crypto ? 'rotate-180' : ''}`}>
-              <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </div>
-          </div>
-        </div>
-
-        {expandedSections.crypto && (
-          <div className="px-6 pb-6 border-t border-gray-600">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-              {/* 기본 설정 */}
-              <div className="bg-gray-700/50 rounded-lg p-4">
-                <h3 className="text-md font-semibold mb-4 text-gray-200">⚙️ 기본 설정</h3>
-                <div className="space-y-4">
-                  <div className="bg-gray-600/50 rounded p-3 border border-gray-500">
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="text-sm text-gray-300 font-medium">코인 자동매매 활성화</label>
-                      <button
-                        onClick={() => setSettings(prev => ({ ...prev, cryptoEnabled: !prev.cryptoEnabled }))}
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                          settings.cryptoEnabled ? 'bg-blue-600' : 'bg-gray-400'
-                        }`}
-                      >
-                        <span
-                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                            settings.cryptoEnabled ? 'translate-x-6' : 'translate-x-1'
-                          }`}
-                        />
-                      </button>
-                    </div>
-                    <div className="text-xs text-gray-400">
-                      활성화 시 설정된 전략에 따라 자동매매가 실행됩니다
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm text-gray-400 mb-2">최대 투자 비율 (%)</label>
-                    <input
-                      type="number"
-                      value={settings.cryptoMaxInvestmentPercent}
-                      onChange={(e) => setSettings(prev => ({
-                        ...prev,
-                        cryptoMaxInvestmentPercent: parseFloat(e.target.value) || 0
-                      }))}
-                      step="0.1"
-                      min="0"
-                      max="100"
-                      className="w-full bg-gray-600 border border-gray-500 rounded px-3 py-2 text-white"
-                    />
-                    <div className="text-xs text-gray-500 mt-1">
-                      총 자산 대비 코인 투자 최대 비율
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* 리스크 관리 */}
-              <div className="bg-gray-700/50 rounded-lg p-4">
-                <h3 className="text-md font-semibold mb-4 text-gray-200">🛡️ 리스크 관리</h3>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm text-gray-400 mb-2">기본 손절 비율 (%)</label>
-                    <input
-                      type="number"
-                      value={settings.cryptoStopLossPercent}
-                      onChange={(e) => setSettings(prev => ({
-                        ...prev,
-                        cryptoStopLossPercent: parseFloat(e.target.value) || 0
-                      }))}
-                      step="0.1"
-                      min="0"
-                      max="50"
-                      className="w-full bg-gray-600 border border-gray-500 rounded px-3 py-2 text-white"
-                    />
-                    <div className="text-xs text-gray-500 mt-1">매수가 대비 하락 시 손절할 비율</div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm text-gray-400 mb-2">기본 익절 비율 (%)</label>
-                    <input
-                      type="number"
-                      value={settings.cryptoProfitTakingPercent}
-                      onChange={(e) => setSettings(prev => ({
-                        ...prev,
-                        cryptoProfitTakingPercent: parseFloat(e.target.value) || 0
-                      }))}
-                      step="0.1"
-                      min="0"
-                      max="100"
-                      className="w-full bg-gray-600 border border-gray-500 rounded px-3 py-2 text-white"
-                    />
-                    <div className="text-xs text-gray-500 mt-1">매수가 대비 상승 시 익절할 비율</div>
                   </div>
                 </div>
               </div>
