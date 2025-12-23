@@ -279,17 +279,35 @@ export default function QuantRecommendation() {
 
 
 
-  // 1% 할인된 가격을 10원 단위로 반올림하는 함수
-  const calculateDiscountedPrice = (price: number) => {
-    const discounted = price * 0.99;
+  // 할인된 가격을 계산하는 함수 (할인율을 매개변수로 받음)
+  const calculateDiscountedPrice = (price: number, discountPercent: number = 1) => {
+    const discounted = price * (1 - discountPercent / 100);
     return Math.round(discounted / 10) * 10;
   };
 
   // 매수 모달 열기
   const openBuyModal = async (stock: QuantStock) => {
     setSelectedStock(stock);
-    // 종가에서 1% 낮춘 가격을 10원 단위로 반올림하여 기본 매수가로 설정
-    const buyPrice = calculateDiscountedPrice(stock.종가);
+
+    // 현재가 조회
+    let currentPrice = stock.종가; // 기본값으로 종가 사용
+    let defaultDiscountPercent = 1; // 기본 할인율
+
+    try {
+      // 현재가 조회 API 호출
+      const priceResponse = await fetch(`/api/stock-data?symbol=${stock.종목코드}`);
+      const priceData = await priceResponse.json();
+
+      if (priceResponse.ok && priceData.currentPrice) {
+        currentPrice = priceData.currentPrice;
+        console.log(`${stock.종목명}(${stock.종목코드}) - 현재가: ${currentPrice}, 종가: ${stock.종가}`);
+      } else {
+        console.warn(`${stock.종목명}(${stock.종목코드}) 현재가 조회 실패, 종가 사용: ${stock.종가}`);
+      }
+    } catch (error) {
+      console.error(`${stock.종목명}(${stock.종목코드}) 현재가 조회 오류:`, error);
+      // 오류 시 종가 사용
+    }
 
     // DB에서 기본 설정값 가져오기
     let defaultProfitPercent = 1;
@@ -303,16 +321,19 @@ export default function QuantRecommendation() {
         defaultProfitPercent = data.quantumDefaultProfitPercent || data.defaultProfitPercent || 1;
         defaultStopLossPercent = data.quantumDefaultStopLossPercent || data.defaultStopLossPercent || 3;
         defaultStopLossEnabled = data.quantumDefaultStopLossEnabled !== undefined ? data.quantumDefaultStopLossEnabled : (data.defaultStopLossEnabled !== undefined ? data.defaultStopLossEnabled : true);
+        defaultDiscountPercent = data.quantumDefaultDiscountPercent || data.defaultDiscountPercent || 1;
       }
     } catch (error) {
       console.error('설정 로드 실패:', error);
     }
 
+    // 현재가에서 설정된 할인율만큼 낮춘 가격을 10원 단위로 반올림하여 기본 매수가로 설정
+    const buyPrice = calculateDiscountedPrice(currentPrice, defaultDiscountPercent);
     const sellPrice = Math.round(buyPrice * (1 + defaultProfitPercent / 100));
     const stopLossPrice = Math.round(buyPrice * (1 - defaultStopLossPercent / 100));
 
     setBuySettings({
-      orderType: 'limit', // 지정가로 변경 (1% 낮춘 가격이므로)
+      orderType: 'limit', // 지정가로 변경 (할인된 가격이므로)
       price: buyPrice,
       quantity: 1,
       sellEnabled: true,
@@ -379,6 +400,7 @@ export default function QuantRecommendation() {
     let defaultProfitPercent = 1;
     let defaultStopLossPercent = 3;
     let defaultStopLossEnabled = true;
+    let defaultDiscountPercent = 1; // 기본 할인율
 
     try {
       const response = await fetch('/api/trading-settings');
@@ -388,6 +410,7 @@ export default function QuantRecommendation() {
         defaultProfitPercent = data.quantumDefaultProfitPercent || data.defaultProfitPercent || 1;
         defaultStopLossPercent = data.quantumDefaultStopLossPercent || data.defaultStopLossPercent || 3;
         defaultStopLossEnabled = data.quantumDefaultStopLossEnabled !== undefined ? data.quantumDefaultStopLossEnabled : (data.defaultStopLossEnabled !== undefined ? data.defaultStopLossEnabled : true);
+        defaultDiscountPercent = data.quantumDefaultDiscountPercent || data.defaultDiscountPercent || 1;
       }
     } catch (error) {
       console.error('설정 로드 실패:', error);
@@ -395,9 +418,28 @@ export default function QuantRecommendation() {
 
     const initialSettings: typeof bulkBuySettings = {};
 
-    filteredStocks.forEach(stock => {
-      // 종가에서 1% 낮춘 가격을 10원 단위로 반올림하여 기본값으로
-      const buyPrice = calculateDiscountedPrice(stock.종가);
+    // 각 종목의 현재가를 가져와서 할인된 매수가 계산
+    for (const stock of filteredStocks) {
+      let currentPrice = stock.종가; // 기본값으로 종가 사용
+
+      try {
+        // 현재가 조회 API 호출
+        const priceResponse = await fetch(`/api/stock-data?symbol=${stock.종목코드}`);
+        const priceData = await priceResponse.json();
+
+        if (priceResponse.ok && priceData.currentPrice) {
+          currentPrice = priceData.currentPrice;
+          console.log(`${stock.종목명}(${stock.종목코드}) - 현재가: ${currentPrice}, 종가: ${stock.종가}`);
+        } else {
+          console.warn(`${stock.종목명}(${stock.종목코드}) 현재가 조회 실패, 종가 사용: ${stock.종가}`);
+        }
+      } catch (error) {
+        console.error(`${stock.종목명}(${stock.종목코드}) 현재가 조회 오류:`, error);
+        // 오류 시 종가 사용
+      }
+
+      // 현재가에서 설정된 할인율만큼 낮춘 가격을 10원 단위로 반올림하여 기본값으로
+      const buyPrice = calculateDiscountedPrice(currentPrice, defaultDiscountPercent);
       const defaultQuantity = buyPrice >= maxAmount ? 1 : Math.floor(maxAmount / buyPrice);
       const sellPrice = Math.round(buyPrice * (1 + defaultProfitPercent / 100));
       const stopLossPrice = Math.round(buyPrice * (1 - defaultStopLossPercent / 100));
@@ -413,7 +455,7 @@ export default function QuantRecommendation() {
         stopLossPercent: defaultStopLossPercent,
         stopLossPrice: stopLossPrice,
       };
-    });
+    }
 
     setBulkBuySettings(initialSettings);
     setBulkBuyModalOpen(true);
@@ -1077,7 +1119,7 @@ export default function QuantRecommendation() {
                   value={buySettings.orderType}
                   onChange={(e) => {
                     const newOrderType = e.target.value as 'market' | 'limit';
-                    const newPrice = newOrderType === 'market' ? calculateDiscountedPrice(selectedStock.종가) : selectedStock.종가;
+                    const newPrice = newOrderType === 'market' ? calculateDiscountedPrice(selectedStock.종가, 1) : selectedStock.종가;
                     const sellPrice = Math.round(newPrice * (1 + buySettings.sellProfitPercent / 100));
                     const stopLossPrice = Math.round(newPrice * (1 - buySettings.stopLossPercent / 100));
 
@@ -1146,7 +1188,7 @@ export default function QuantRecommendation() {
                         value={buySettings.sellProfitPercent}
                         onChange={(e) => {
                           const percent = parseFloat(e.target.value) || 1;
-                          const buyPrice = buySettings.orderType === 'market' ? calculateDiscountedPrice(selectedStock.종가) : buySettings.price;
+                          const buyPrice = buySettings.orderType === 'market' ? calculateDiscountedPrice(selectedStock.종가, 1) : buySettings.price;
                           const sellPrice = Math.round(buyPrice * (1 + percent / 100));
                           setBuySettings(prev => ({
                             ...prev,
@@ -1197,7 +1239,7 @@ export default function QuantRecommendation() {
                         value={buySettings.stopLossPercent}
                         onChange={(e) => {
                           const percent = parseFloat(e.target.value) || 3;
-                          const buyPrice = buySettings.orderType === 'market' ? calculateDiscountedPrice(selectedStock.종가) : buySettings.price;
+                          const buyPrice = buySettings.orderType === 'market' ? calculateDiscountedPrice(selectedStock.종가, 1) : buySettings.price;
                           const stopLossPrice = Math.round(buyPrice * (1 - percent / 100));
                           setBuySettings(prev => ({
                             ...prev,
@@ -1227,7 +1269,7 @@ export default function QuantRecommendation() {
               <div className="bg-gray-700 rounded p-3">
                 <div className="text-sm text-gray-400">예상 주문 금액</div>
                 <div className="text-lg font-bold">
-                  ₩{((buySettings.orderType === 'market' ? calculateDiscountedPrice(selectedStock.종가) : buySettings.price) * buySettings.quantity).toLocaleString()}
+                  ₩{((buySettings.orderType === 'market' ? calculateDiscountedPrice(selectedStock.종가, 1) : buySettings.price) * buySettings.quantity).toLocaleString()}
                 </div>
               </div>
             </div>

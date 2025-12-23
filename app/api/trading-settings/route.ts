@@ -116,9 +116,6 @@ export async function GET(request: NextRequest) {
       quantumDefaultDiscountPercent: parseFloat(data.quantum_default_discount_percent) || DEFAULT_SETTINGS.quantumDefaultDiscountPercent
     };
 
-    console.log('API - DB에서 로드한 원본 데이터:', data); // 디버깅용 로그
-    console.log('API - 변환된 설정 데이터:', settings); // 디버깅용 로그
-
     return NextResponse.json(settings);
   } catch (error) {
     console.error('설정 조회 실패:', error);
