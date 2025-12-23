@@ -37,8 +37,6 @@ export async function GET() {
 
     const data = await response.json();
 
-    console.log('Bot server response:', data);
-
     // 새로운 봇 서버 응답 형식 처리
     if (data.success && data.data) {
       const { active_coins, coin_status, total_active, server_time } = data.data;
