@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 
 // 만료된 토큰 정리 (크론 작업용)
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
     const supabase = await createClient();
 
@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
 }
 
 // 특정 사용자의 토큰 강제 삭제 (로그아웃 시 사용)
-export async function DELETE(request: NextRequest) {
+export async function DELETE() {
   try {
     const supabase = await createClient();
 

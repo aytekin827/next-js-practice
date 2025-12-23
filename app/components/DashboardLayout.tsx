@@ -20,6 +20,7 @@ export default function DashboardLayout({ children, currentPage, onPageChange }:
   const [currentTime, setCurrentTime] = useState(new Date());
   const [apiStatus, setApiStatus] = useState<'online' | 'offline'>('offline');
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const supabase = createClient();
 
@@ -57,6 +58,47 @@ export default function DashboardLayout({ children, currentPage, onPageChange }:
     } catch (error) {
       console.error('API 상태 확인 실패:', error);
       setApiStatus('offline');
+    }
+  };
+
+  // 로그아웃 처리
+  const handleLogout = async () => {
+    if (isLoggingOut) return; // 중복 클릭 방지
+
+    setIsLoggingOut(true);
+
+    try {
+      // 1. 토큰 정리 API 호출
+      const tokenResponse = await fetch('/api/cleanup-tokens', {
+        method: 'DELETE',
+      });
+
+      if (tokenResponse.ok) {
+        console.log('토큰 정리 완료');
+      } else {
+        console.warn('토큰 정리 실패, 계속 진행');
+      }
+
+      // 2. Supabase 로그아웃
+      const { error } = await supabase.auth.signOut();
+
+      if (error) {
+        console.error('Supabase 로그아웃 오류:', error);
+      }
+
+      // 3. 페이지 새로고침 (로그인 페이지로 이동)
+      window.location.reload();
+    } catch (error) {
+      console.error('로그아웃 실패:', error);
+      // 오류가 발생해도 강제 로그아웃
+      try {
+        await supabase.auth.signOut();
+      } catch (signOutError) {
+        console.error('강제 로그아웃도 실패:', signOutError);
+      }
+      window.location.reload();
+    } finally {
+      setIsLoggingOut(false);
     }
   };
 
@@ -196,6 +238,30 @@ export default function DashboardLayout({ children, currentPage, onPageChange }:
               {/* 현재 시간 */}
               <div className="text-sm font-mono">
                 {currentTime.toLocaleTimeString()}
+              </div>
+
+              {/* 사용자 정보 및 로그아웃 */}
+              <div className="flex items-center gap-4">
+                <div className="text-sm text-gray-300">
+                  {user?.email}
+                </div>
+                <button
+                  onClick={handleLogout}
+                  disabled={isLoggingOut}
+                  className="bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                >
+                  {isLoggingOut ? (
+                    <>
+                      <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
+                      로그아웃 중...
+                    </>
+                  ) : (
+                    <>
+                      <span>🚪</span>
+                      로그아웃
+                    </>
+                  )}
+                </button>
               </div>
             </div>
           </div>

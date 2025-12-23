@@ -1,47 +1,19 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/utils/supabase/server';
-import { getKISConfig, getKISAccessToken } from '@/utils/kis-config';
+import { NextResponse } from 'next/server';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    const supabase = await createClient();
-
-    // 사용자 인증 확인
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: '인증이 필요합니다' }, { status: 401 });
-    }
-
-    // KIS 설정 가져오기
-    const kisConfig = await getKISConfig(user.id);
-    if (!kisConfig) {
-      return NextResponse.json({
-        status: 'offline',
-        error: 'KIS API 설정이 필요합니다',
-        timestamp: new Date().toISOString(),
-        apiProvider: '한국투자증권'
-      });
-    }
-
-    // KIS 액세스 토큰 발급으로 연결 상태 확인 (캐시된 토큰 우선 사용)
-    const accessToken = await getKISAccessToken(kisConfig, user.id);
-
-    const isOnline = !!accessToken;
-
+    // 간단한 상태 체크 - 서버가 응답하면 온라인
     return NextResponse.json({
-      status: isOnline ? 'online' : 'offline',
+      status: 'online',
       timestamp: new Date().toISOString(),
-      apiProvider: '한국투자증권',
-      baseUrl: kisConfig.baseUrl,
-      accountNumber: kisConfig.accountNumber.replace(/(\d{4})(\d{4})/, '$1****') // 계좌번호 마스킹
+      message: 'API 서버가 정상 작동 중입니다'
     });
   } catch (error) {
-    console.error('API 상태 확인 실패:', error);
+    console.error('API 상태 체크 오류:', error);
     return NextResponse.json({
       status: 'offline',
-      error: '상태 확인 중 오류 발생',
       timestamp: new Date().toISOString(),
-      apiProvider: '한국투자증권'
+      message: 'API 서버 오류'
     }, { status: 500 });
   }
 }
