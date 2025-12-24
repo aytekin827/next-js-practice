@@ -123,28 +123,46 @@ export async function POST(request: NextRequest) {
       const today = new Date().toISOString().split('T')[0];
       const queryDate = date || today;
 
+      // RPC 함수를 사용하여 DISTINCT 쿼리 실행
       const { data, error } = await supabase
-        .from('stock_rankings')
-        .select('strategy_number, strategy_name')
-        .eq('ref_date', queryDate)
-        .order('strategy_number');
+        .rpc('get_distinct_strategies', {
+          query_date: queryDate
+        });
 
       if (error) {
         console.error('전략 목록 조회 오류:', error);
-        return NextResponse.json({
-          error: '전략 목록 조회에 실패했습니다',
-          details: error.message
-        }, { status: 500 });
-      }
+        // RPC 함수가 없는 경우 fallback으로 일반 쿼리 사용
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('stock_rankings')
+          .select('strategy_number, strategy_name')
+          .eq('ref_date', queryDate)
+          .order('strategy_number')
+          .limit(2000); // 제한을 늘려서 더 많은 데이터 가져오기
 
-      // 중복 제거
-      const uniqueStrategies = Array.from(
-        new Map(data.map(item => [item.strategy_number, item])).values()
-      );
+        if (fallbackError) {
+          return NextResponse.json({
+            error: '전략 목록 조회에 실패했습니다',
+            details: fallbackError.message
+          }, { status: 500 });
+        }
+
+        // 중복 제거
+        const uniqueStrategies = Array.from(
+          new Map(fallbackData.map(item => [item.strategy_number, {
+            strategy_number: item.strategy_number,
+            strategy_name: item.strategy_name
+          }])).values()
+        );
+
+        return NextResponse.json({
+          success: true,
+          strategies: uniqueStrategies
+        });
+      }
 
       return NextResponse.json({
         success: true,
-        strategies: uniqueStrategies
+        strategies: data || []
       });
     }
 
