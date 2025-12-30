@@ -173,6 +173,10 @@ def upload_and_insert():
             available_cols = [c for c in rename_map.keys() if c in df.columns]
             db_df = df[available_cols].rename(columns=rename_map)
 
+            # 종목코드를 6자리로 패딩
+            if 'ticker' in db_df.columns:
+                db_df['ticker'] = db_df['ticker'].astype(str).str.zfill(6)
+
             # 숫자형 컬럼 강제 변환 (문자 'inf' 등을 float inf로 변환)
             numeric_cols = [
                 "market_cap_bil", "trading_val_won", "total_score",

@@ -65,10 +65,20 @@ export default function QuantRecommendation() {
   const [isLoading, setIsLoading] = useState(false);
   const [loadMessage, setLoadMessage] = useState('');
 
+  // 종목코드를 6자리로 패딩하는 함수
+  const formatStockCode = (code: string | number): string => {
+    const codeStr = String(code);
+    return codeStr.padStart(6, '0');
+  };
+
   // 전략 관련 상태
   const [strategies, setStrategies] = useState<Strategy[]>([]);
   const [selectedStrategy, setSelectedStrategy] = useState<string>('');
-  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState<string>(() => {
+    const now = new Date();
+    const koreaTime = new Date(now.getTime() + (9 * 60 * 60 * 1000)); // UTC + 9시간
+    return koreaTime.toISOString().split('T')[0];
+  });
 
   // 필터링 설정 - 모든 종목이 표시되도록 넓은 범위로 설정
   const [filters, setFilters] = useState<FilterSettings>({
@@ -200,7 +210,13 @@ export default function QuantRecommendation() {
       const data = await response.json();
 
       if (data.success) {
-        setStocks(data.data);
+        // 종목코드를 6자리로 패딩하여 설정
+        const formattedStocks = data.data.map((stock: any) => ({
+          ...stock,
+          종목코드: formatStockCode(stock.종목코드)
+        }));
+
+        setStocks(formattedStocks);
         setLoadMessage(`✅ ${data.count}개 종목 데이터를 불러왔습니다 (${data.date})`);
 
         // 데이터 로드 시 필터 자동 조정 제거 - 모든 종목이 표시되도록 함
@@ -294,18 +310,19 @@ export default function QuantRecommendation() {
     let defaultDiscountPercent = 1; // 기본 할인율
 
     try {
-      // 현재가 조회 API 호출
-      const priceResponse = await fetch(`/api/stock-data?symbol=${stock.종목코드}`);
+      // 현재가 조회 API 호출 - 종목코드를 6자리로 패딩하여 전달
+      const formattedCode = formatStockCode(stock.종목코드);
+      const priceResponse = await fetch(`/api/stock-data?symbol=${formattedCode}`);
       const priceData = await priceResponse.json();
 
       if (priceResponse.ok && priceData.currentPrice) {
         currentPrice = priceData.currentPrice;
-        console.log(`${stock.종목명}(${stock.종목코드}) - 현재가: ${currentPrice}, 종가: ${stock.종가}`);
+        console.log(`${stock.종목명}(${formattedCode}) - 현재가: ${currentPrice}, 종가: ${stock.종가}`);
       } else {
-        console.warn(`${stock.종목명}(${stock.종목코드}) 현재가 조회 실패, 종가 사용: ${stock.종가}`);
+        console.warn(`${stock.종목명}(${formattedCode}) 현재가 조회 실패, 종가 사용: ${stock.종가}`);
       }
     } catch (error) {
-      console.error(`${stock.종목명}(${stock.종목코드}) 현재가 조회 오류:`, error);
+      console.error(`${stock.종목명}(${formatStockCode(stock.종목코드)}) 현재가 조회 오류:`, error);
       // 오류 시 종가 사용
     }
 
@@ -351,13 +368,14 @@ export default function QuantRecommendation() {
     if (!selectedStock) return;
 
     try {
+      const formattedCode = formatStockCode(selectedStock.종목코드);
       const response = await fetch('/api/stock-buy', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          symbol: selectedStock.종목코드,
+          symbol: formattedCode,
           quantity: buySettings.quantity,
           price: buySettings.price,
           orderType: buySettings.orderType,
@@ -423,18 +441,19 @@ export default function QuantRecommendation() {
       let currentPrice = stock.종가; // 기본값으로 종가 사용
 
       try {
-        // 현재가 조회 API 호출
-        const priceResponse = await fetch(`/api/stock-data?symbol=${stock.종목코드}`);
+        // 현재가 조회 API 호출 - 종목코드를 6자리로 패딩하여 전달
+        const formattedCode = formatStockCode(stock.종목코드);
+        const priceResponse = await fetch(`/api/stock-data?symbol=${formattedCode}`);
         const priceData = await priceResponse.json();
 
         if (priceResponse.ok && priceData.currentPrice) {
           currentPrice = priceData.currentPrice;
-          console.log(`${stock.종목명}(${stock.종목코드}) - 현재가: ${currentPrice}, 종가: ${stock.종가}`);
+          console.log(`${stock.종목명}(${formattedCode}) - 현재가: ${currentPrice}, 종가: ${stock.종가}`);
         } else {
-          console.warn(`${stock.종목명}(${stock.종목코드}) 현재가 조회 실패, 종가 사용: ${stock.종가}`);
+          console.warn(`${stock.종목명}(${formattedCode}) 현재가 조회 실패, 종가 사용: ${stock.종가}`);
         }
       } catch (error) {
-        console.error(`${stock.종목명}(${stock.종목코드}) 현재가 조회 오류:`, error);
+        console.error(`${stock.종목명}(${formatStockCode(stock.종목코드)}) 현재가 조회 오류:`, error);
         // 오류 시 종가 사용
       }
 
@@ -479,13 +498,14 @@ export default function QuantRecommendation() {
       if (!stock) continue;
 
       try {
+        const formattedSymbol = formatStockCode(symbol);
         const response = await fetch('/api/stock-buy', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            symbol: symbol,
+            symbol: formattedSymbol,
             quantity: settings.quantity,
             price: settings.price,
             orderType: 'limit',

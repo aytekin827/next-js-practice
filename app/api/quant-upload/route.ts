@@ -61,7 +61,7 @@ function parseCSV(csvText: string): QuantumStock[] {
     try {
       const stock: QuantumStock = {
         종목명: values[headers.indexOf('종목명')] || '',
-        종목코드: values[headers.indexOf('종목코드')] || '',
+        종목코드: (values[headers.indexOf('종목코드')] || '').padStart(6, '0'), // 6자리로 패딩
         종가: parseFloat(values[headers.indexOf('종가')]) || 0,
         시가총액: parseFloat(values[headers.indexOf('시가총액')]) || 0,
         거래량: parseFloat(values[headers.indexOf('거래량')]) || 0,

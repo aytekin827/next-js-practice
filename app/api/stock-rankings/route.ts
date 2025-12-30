@@ -43,6 +43,12 @@ export async function GET(request: NextRequest) {
 
     // 데이터를 기존 QuantStock 인터페이스 형식으로 변환
     const transformedData = (data || []).map(item => {
+      // 종목코드를 6자리로 패딩하는 함수
+      const formatStockCode = (code: string | number): string => {
+        const codeStr = String(code || '');
+        return codeStr.padStart(6, '0');
+      };
+
       // 시가총액(억원)과 거래대금(원)을 이용해 대략적인 주가 추정
       // 실제로는 별도 API에서 현재가를 가져와야 하지만, 임시로 계산
       const marketCapWon = parseFloat(item.market_cap_bil || '0') * 100000000; // 억원을 원으로 변환
@@ -57,7 +63,7 @@ export async function GET(request: NextRequest) {
 
       return {
         종목명: item.name || '',
-        종목코드: item.ticker || '',
+        종목코드: formatStockCode(item.ticker || ''),
         종가: Math.round(estimatedPrice),
         시가총액: parseFloat(item.market_cap_bil || '0'),
         거래량: 0, // 데이터베이스에 없는 필드
